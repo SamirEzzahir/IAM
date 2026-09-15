@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+env/
+
+# Runtime files
+*.log
+.env
+
+# IDE and operating system
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Confidential operational data
+*.xlsx
+*.xls
+*.csv
+*.kml
+*.kmz
+
+# Keep the safe documentation templates tracked
+!examples/*.csv
+

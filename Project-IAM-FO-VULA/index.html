@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>VULA Control Center V5 - Occupation & Priorité</title>
+<script src="static/vendor/jszip.min.js"></script>
+<script src="static/vendor/xlsx.full.min.js"></script>
+<link rel="stylesheet" href="static/css/app.css">
+</head>
+<body>
+<div class="loading" id="loading"><div class="loading-box" id="loadingText">Chargement...</div></div>
+<div class="app">
+<header class="header"><div class="brand"><div class="logo">V</div><div><h1>VULA Control Center</h1><div class="subtitle">Recherche PCO · contrôle CGPS · éligibilité VULA</div></div></div><div class="statusbar"><div class="pill"><span id="vulaDot" class="dot wait"></span><span id="vulaStatus">VULA non chargé</span></div><div class="pill"><span id="pcoDot" class="dot wait"></span><span id="pcoStatus">PCO non chargé</span></div></div></header>
+<div class="card nav"><button class="active" onclick="switchTab('search',this)">Recherche</button><button onclick="switchTab('zone',this)">Extraction par zone</button><button onclick="switchTab('list',this)">Liste PCO</button><button onclick="switchTab('clients',this)">Recherche Client</button><button onclick="switchTab('pasapas',this)">Étude pas à pas</button><button onclick="switchTab('config',this)">Configuration</button></div>
+<section id="tab-search" class="card panel tab active"><div id="firstUseNotice" class="notice" style="display:none;margin-bottom:16px"><strong>Configuration initiale requise.</strong><br>Sélectionnez une fois le fichier des polygones VULA et le fichier PCO. Les données seront conservées localement dans ce navigateur pour les prochaines utilisations.</div><div class="search-grid"><div><div class="field"><label>Recherche par PCO</label><input id="pcoSearch" type="text" placeholder="Ex. O1A1T-ZO-512/2" onkeydown="if(event.key==='Enter')searchPCO()"></div><div class="actions"><button class="primary" onclick="searchPCO()">Rechercher le PCO</button><button class="secondary" onclick="clearSearch()">Effacer</button></div><div id="matches" class="match-list"></div></div><div><div class="field"><label>Test par CGPS</label><input id="gpsSearch" type="text" placeholder="34.035175, -4.987058" onkeydown="if(event.key==='Enter')testGPS()"></div><div class="actions"><button class="primary" onclick="testGPS()">Tester la CGPS</button></div><div class="helper" style="margin-top:10px">Formats acceptés : 34.033575 -4.990342 · 34.033575, -4.990342 · 34.033575/-4.990342</div></div></div><div id="searchResult" class="result-card"></div></section>
+<section id="tab-zone" class="card panel tab"><div class="notice" style="margin-bottom:16px"><strong>Priorité d’affichage :</strong> IN VULA + ports libres → IN VULA + saturé → OUT VULA. À priorité égale, les PCO restent triés par zone réseau.</div><div class="grid"><div class="field"><label>Préfixe / zone PCO</label><input id="inputZone" type="text" placeholder="Ex. O1A1T-ZO" onkeydown="if(event.key==='Enter'){event.preventDefault();analyserZone()}"></div></div><div class="actions"><button class="primary" onclick="analyserZone()">Lancer l'extraction</button></div><div id="zoneStats"></div><div id="zoneResults"></div></section>
+<section id="tab-list" class="card panel tab"><div class="field"><label>Liste des PCO</label><textarea id="inputListePCO" placeholder="Un PCO par ligne"></textarea></div><div class="actions"><label class="file-btn">Importer Excel PCO<input id="pcoListFileInput" class="file-input" type="file" accept=".xlsx,.xls,.csv" onchange="importerListePCOExcel(this)"></label><button class="primary" onclick="analyserListePCO()">Analyser la liste</button><button class="secondary" onclick="document.getElementById('inputListePCO').value=''">Effacer</button></div><div id="listStats"></div><div id="listResults"></div></section>
+<section id="tab-clients" class="card panel tab">
+<div class="notice" style="margin-bottom:16px"><strong>Recherche client.</strong> Importez la base Excel dans Configuration. La recherche ignore les espaces, majuscules/minuscules et accents.</div>
+<div class="client-search-card">
+<div class="field"><label>Type de recherche</label></div>
+<div id="clientModeButtons" class="client-mode-buttons" style="margin-top:8px"><button class="primary" type="button" onclick="choisirRechercheClient('adresse')">Adresse Client</button><button class="secondary" type="button" onclick="choisirRechercheClient('nom')">Nom Client</button><button class="secondary" type="button" onclick="choisirRechercheClient('login')">Login</button><button class="secondary" type="button" onclick="choisirRechercheClient('serie')">Série ONT</button></div>
+<div class="field" style="margin-top:14px"><label id="clientSearchLabel">Recherche par Adresse Client</label><input id="clientSearchInput" type="text" placeholder="Ex. bensouda" onkeydown="if(event.key==='Enter')rechercherClients()"></div>
+<div class="client-search-actions" style="margin-top:12px"><button class="primary" type="button" onclick="rechercherClients()">Rechercher</button><button class="secondary" type="button" onclick="effacerRechercheClient()">Effacer</button></div>
+</div>
+<div id="clientStats"></div><div id="clientResults"></div></section>
+
+<section id="tab-pasapas" class="card panel tab">
+  <div class="notice" style="margin-bottom:16px"><strong>Étude pas à pas.</strong> Saisissez le numéro CMD. La recherche est exécutée automatiquement dans WimTech et retourne l’adresse d’installation.</div>
+  <div class="client-search-card">
+    <div class="field">
+      <label>Numéro CMD</label>
+      <input id="pasapasCmd" type="text" placeholder="Ex. numéro CMD" onkeydown="if(event.key==='Enter'){event.preventDefault();rechercherAdressePasAPas()}">
+    </div>
+    <div class="client-search-actions" style="margin-top:12px">
+      <button class="primary" type="button" onclick="rechercherAdressePasAPas()">Rechercher</button>
+      <button class="secondary" type="button" onclick="effacerAdressePasAPas()">Effacer</button>
+    </div>
+  </div>
+  <div id="pasapasResult" class="result-card"></div>
+  <div id="pasapasClientSearchBox" style="display:none;margin-top:18px">
+    <div class="client-priority-note"><strong>Recherche automatique Adresse Client :</strong> l’adresse trouvée dans WimTech est utilisée automatiquement pour rechercher les clients dans la base Excel.</div>
+    <div id="pasapasClientStats"></div>
+    <div id="pasapasClientResults"></div>
+  </div>
+</section>
+
+<section id="tab-config" class="card panel tab"><div class="config-card"><div class="config-row"><div><div class="config-name">Zones / Polygones VULA</div><div class="config-file" id="vulaFileName">Aucun fichier configuré</div></div><div class="config-actions"><span id="vulaConfigStatus" class="config-status wait">Non configuré</span><label class="file-btn">Choisir KML / KMZ<input id="vulaFileInput" class="file-input" type="file" accept=".kml,.kmz" onchange="importerFichierSelectionne(this,'VULA')"></label></div></div><div class="config-row"><div><div class="config-name">PCO</div><div class="config-file" id="pcoFileName">Aucun fichier configuré</div></div><div class="config-actions"><span id="pcoConfigStatus" class="config-status wait">Non configuré</span><label class="file-btn">Choisir KML / KMZ<input id="pcoFileInput" class="file-input" type="file" accept=".kml,.kmz" onchange="importerFichierSelectionne(this,'PCO')"></label></div></div>
+<div class="config-row"><div><div class="config-name">Occupation PCO (Excel)</div><div class="config-file" id="occupationFileName">Aucun fichier configuré</div></div><div class="config-actions"><span id="occupationConfigStatus" class="config-status wait">Non configuré</span><label class="file-btn">Choisir Excel<input id="occupationFileInput" class="file-input" type="file" accept=".xlsx,.xls,.csv" onchange="importerFichierOccupation(this)"></label></div></div><div class="config-row"><div><div class="config-name">Base clients (Excel)</div><div class="config-file" id="clientsFileName">Aucun fichier configuré</div></div><div class="config-actions"><span id="clientsConfigStatus" class="config-status wait">Non configuré</span><label class="file-btn">Choisir Excel<input id="clientsFileInput" class="file-input" type="file" accept=".xlsx,.xls,.csv" onchange="importerFichierClients(this)"></label></div></div></div><div class="notice">Les fichiers sont importés et conservés localement dans le navigateur. Ils ne sont pas envoyés à un serveur par cette application.</div><div class="warning" style="margin-top:12px">Si les données du navigateur sont supprimées, si un autre navigateur/profil est utilisé, ou si le navigateur refuse le stockage pour les fichiers locaux, les deux fichiers devront être sélectionnés à nouveau.</div><div class="actions"><button class="danger" onclick="reinitialiserConfiguration()">Réinitialiser la configuration locale</button></div></section>
+<footer class="footer">Developed by ELMASSAOUDI Mohamed</footer>
+</div><div id="toast" class="toast"></div>
+<script src="static/js/app.js"></script>
+</body>
+</html>
