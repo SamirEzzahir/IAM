@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#b91624">
+  <title>Portail des services FO</title>
+  <style>
+    :root {
+      --red: #c7192d;
+      --red-dark: #8f101d;
+      --ink: #182028;
+      --muted: #68737e;
+      --line: rgba(24, 32, 40, .1);
+      --surface: rgba(255, 255, 255, .88);
+      --shadow: 0 24px 70px rgba(41, 19, 22, .13);
+    }
+    * { box-sizing: border-box; }
+    html { min-height: 100%; background: #f5f2ef; }
+    body {
+      min-height: 100vh;
+      margin: 0;
+      color: var(--ink);
+      font-family: "Segoe UI", Inter, Arial, sans-serif;
+      background:
+        radial-gradient(circle at 88% 8%, rgba(199, 25, 45, .15), transparent 28rem),
+        radial-gradient(circle at 7% 92%, rgba(25, 37, 47, .1), transparent 30rem),
+        linear-gradient(145deg, #fbfaf8 0%, #f2efec 100%);
+    }
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      opacity: .28;
+      background-image: linear-gradient(rgba(34, 39, 43, .04) 1px, transparent 1px), linear-gradient(90deg, rgba(34, 39, 43, .04) 1px, transparent 1px);
+      background-size: 36px 36px;
+      mask-image: linear-gradient(to bottom, black, transparent 82%);
+    }
+    .shell { width: min(1180px, calc(100% - 40px)); margin: 0 auto; padding: 34px 0 42px; position: relative; }
+    .topbar { display: flex; align-items: center; justify-content: space-between; gap: 20px; }
+    .brand { display: flex; align-items: center; gap: 13px; }
+    .mark {
+      width: 46px; height: 46px; border-radius: 14px; display: grid; place-items: center;
+      color: white; font-weight: 900; letter-spacing: -.04em;
+      background: linear-gradient(145deg, #dc253a, #a80f20);
+      box-shadow: 0 12px 25px rgba(199, 25, 45, .26);
+    }
+    .brand strong { display: block; font-size: 14px; letter-spacing: .08em; }
+    .brand span { display: block; color: var(--muted); font-size: 11px; margin-top: 3px; text-transform: uppercase; letter-spacing: .12em; }
+    .system-state {
+      display: inline-flex; align-items: center; gap: 9px; padding: 9px 13px;
+      border: 1px solid var(--line); border-radius: 999px; background: rgba(255,255,255,.66);
+      color: #48525b; font-size: 12px; backdrop-filter: blur(12px);
+    }
+    .pulse { width: 8px; height: 8px; border-radius: 50%; background: #e6a23c; box-shadow: 0 0 0 5px rgba(230,162,60,.12); }
+    .pulse.ready { background: #1c9b61; box-shadow: 0 0 0 5px rgba(28,155,97,.12); }
+    .hero { padding: 98px 0 53px; max-width: 800px; }
+    .eyebrow { display: flex; align-items: center; gap: 10px; color: var(--red-dark); font-size: 12px; font-weight: 800; letter-spacing: .16em; text-transform: uppercase; }
+    .eyebrow::before { content: ""; width: 30px; height: 2px; background: var(--red); }
+    h1 { margin: 17px 0 18px; max-width: 760px; font-size: clamp(42px, 7vw, 78px); line-height: .99; letter-spacing: -.055em; }
+    h1 em { color: var(--red); font-style: normal; }
+    .hero p { max-width: 630px; margin: 0; color: var(--muted); font-size: 17px; line-height: 1.7; }
+    .services { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+    .service {
+      position: relative; min-height: 290px; padding: 24px; overflow: hidden;
+      display: flex; flex-direction: column; color: inherit; text-decoration: none;
+      border: 1px solid rgba(255,255,255,.85); border-radius: 24px;
+      background: var(--surface); box-shadow: 0 10px 38px rgba(47,35,36,.075);
+      backdrop-filter: blur(18px); transition: transform .22s ease, box-shadow .22s ease, border-color .22s ease;
+    }
+    .service:hover { transform: translateY(-6px); box-shadow: var(--shadow); border-color: rgba(199,25,45,.25); }
+    .service::after { content: ""; position: absolute; width: 155px; height: 155px; border-radius: 50%; right: -70px; bottom: -80px; background: var(--accent-soft); transition: transform .25s ease; }
+    .service:hover::after { transform: scale(1.15); }
+    .card-top { display: flex; align-items: center; justify-content: space-between; }
+    .icon { width: 50px; height: 50px; display: grid; place-items: center; border-radius: 15px; background: var(--accent-soft); color: var(--accent); }
+    .icon svg { width: 25px; height: 25px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+    .status { display: inline-flex; align-items: center; gap: 6px; color: #7b858e; font-size: 11px; font-weight: 700; }
+    .status i { width: 7px; height: 7px; border-radius: 50%; background: #b3bac0; }
+    .status.online { color: #16784b; }
+    .status.online i { background: #21a366; box-shadow: 0 0 0 4px rgba(33,163,102,.11); }
+    .service h2 { margin: 29px 0 9px; font-size: 25px; letter-spacing: -.035em; }
+    .service p { margin: 0; color: var(--muted); line-height: 1.55; font-size: 13px; }
+    .launch { margin-top: auto; padding-top: 25px; display: flex; align-items: center; justify-content: space-between; color: var(--accent); font-size: 12px; font-weight: 800; letter-spacing: .035em; }
+    .arrow { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 50%; background: var(--accent); color: white; transition: transform .2s ease; }
+    .service:hover .arrow { transform: translateX(3px); }
+    .cuiver { --accent: #b36a19; --accent-soft: rgba(196, 119, 32, .12); }
+    .fo { --accent: #c7192d; --accent-soft: rgba(199, 25, 45, .11); }
+    .vula { --accent: #176f79; --accent-soft: rgba(23, 111, 121, .11); }
+    footer { display: flex; justify-content: space-between; gap: 15px; padding-top: 33px; color: #8a939a; font-size: 11px; }
+    @media (max-width: 850px) { .hero { padding-top: 70px; } .services { grid-template-columns: 1fr; } .service { min-height: 240px; } }
+    @media (max-width: 520px) { .shell { width: min(100% - 24px, 1180px); padding-top: 18px; } .brand span { display: none; } .system-state { padding: 8px 10px; } .hero { padding: 58px 4px 38px; } h1 { font-size: 45px; } .hero p { font-size: 15px; } footer { flex-direction: column; } }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <header class="topbar">
+      <div class="brand">
+        <div class="mark">MT</div>
+        <div><strong>MAROC TELECOM</strong><span>Environnement opérationnel</span></div>
+      </div>
+      <div class="system-state"><span class="pulse" id="global-dot"></span><span id="global-status">Vérification des services…</span></div>
+    </header>
+
+    <section class="hero">
+      <div class="eyebrow">Portail des opérations réseau</div>
+      <h1>Bienvenue dans votre espace <em>FO.</em></h1>
+      <p>Accédez rapidement aux outils Cuiver, Fibre Optique et VULA depuis un point d’entrée unique. Choisissez un service pour commencer.</p>
+    </section>
+
+    <section class="services" aria-label="Services disponibles">
+      <a class="service cuiver" href="/Cuiver/">
+        <div class="card-top">
+          <div class="icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12h16M8 8l-4 4 4 4M16 8l4 4-4 4"/><path d="M9.5 5.5h5M9.5 18.5h5"/></svg></div>
+          <span class="status" data-service="cuiver"><i></i><span>Vérification</span></span>
+        </div>
+        <h2>Cuiver</h2>
+        <p>Recherche des commandes, études pas à pas et traitement des opérations sur le réseau cuivre.</p>
+        <div class="launch"><span>OUVRIR LE SERVICE</span><span class="arrow">→</span></div>
+      </a>
+
+      <a class="service fo" href="/FO/">
+        <div class="card-top">
+          <div class="icon"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="8"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/></svg></div>
+          <span class="status" data-service="fo"><i></i><span>Vérification</span></span>
+        </div>
+        <h2>Fibre Optique</h2>
+        <p>Contrôle des PCO, affectations automatiques, mutations en masse et suivi des disponibilités.</p>
+        <div class="launch"><span>OUVRIR LE SERVICE</span><span class="arrow">→</span></div>
+      </a>
+
+      <a class="service vula" href="/VULA/">
+        <div class="card-top">
+          <div class="icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s7-5.1 7-12a7 7 0 1 0-14 0c0 6.9 7 12 7 12Z"/><circle cx="12" cy="9" r="2.4"/></svg></div>
+          <span class="status" data-service="vula"><i></i><span>Vérification</span></span>
+        </div>
+        <h2>VULA</h2>
+        <p>Analyse d’éligibilité, recherche géographique et occupation des PCO dans les zones VULA.</p>
+        <div class="launch"><span>OUVRIR LE SERVICE</span><span class="arrow">→</span></div>
+      </a>
+    </section>
+
+    <footer><span>Portail local sécurisé · Port 8080</span><span>Développé pour les opérations réseau</span></footer>
+  </main>
+  <script>
+    async function refreshStatus() {
+      try {
+        const response = await fetch('/status', { cache: 'no-store' });
+        const services = await response.json();
+        let online = 0;
+        document.querySelectorAll('[data-service]').forEach((node) => {
+          const service = services[node.dataset.service];
+          const ready = Boolean(service && service.online);
+          node.classList.toggle('online', ready);
+          node.querySelector('span').textContent = ready ? 'En ligne' : 'Indisponible';
+          if (ready) online += 1;
+        });
+        const allReady = online === 3;
+        document.getElementById('global-dot').classList.toggle('ready', allReady);
+        document.getElementById('global-status').textContent = allReady ? '3 services opérationnels' : `${online} service${online > 1 ? 's' : ''} en ligne`;
+      } catch (_) {
+        document.getElementById('global-status').textContent = 'Statut indisponible';
+      }
+    }
+    refreshStatus();
+    window.setInterval(refreshStatus, 10000);
+  </script>
+</body>
+</html>
