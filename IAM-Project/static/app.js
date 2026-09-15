@@ -1,0 +1,931 @@
+"use strict";
+
+let currentJobId = null;
+let currentJob = null;
+let pollTimer = null;
+let currentAssignmentJobId = null;
+let assignmentPollTimer = null;
+let currentBulkJobId = null;
+let bulkPollTimer = null;
+let currentRenseignerJobId = null;
+let renseignerPollTimer = null;
+let latestRenseignerRows = [];
+let currentCommandesJobId = null;
+let commandesPollTimer = null;
+
+const tablePageState = {};
+const TABLE_PAGE_SIZE = 50;
+
+const $ = (id) => document.getElementById(id);
+
+// Resolve application URLs relative to the page. This works both at `/` when
+// the project is started alone and at `/FO/` through the combined gateway.
+function appUrl(path) {
+  return new URL(String(path).replace(/^\/+/, ""), document.baseURI).toString();
+}
+
+function renderPaginatedTable(key, tbodyId, rows, rowRenderer, emptyHtml) {
+  const body = $(tbodyId);
+  const totalPages = Math.max(1, Math.ceil(rows.length / TABLE_PAGE_SIZE));
+  const page = Math.min(Math.max(1, tablePageState[key] || 1), totalPages);
+  tablePageState[key] = page;
+  const start = (page - 1) * TABLE_PAGE_SIZE;
+  const pageRows = rows.slice(start, start + TABLE_PAGE_SIZE);
+  body.innerHTML = pageRows.length
+    ? pageRows.map((row, index) => rowRenderer(row, start + index)).join("")
+    : emptyHtml;
+
+  const paginationId = `${tbodyId}Pagination`;
+  let pagination = $(paginationId);
+  if (!pagination) {
+    pagination = document.createElement("div");
+    pagination.id = paginationId;
+    pagination.className = "table-pagination";
+    body.closest(".results").appendChild(pagination);
+  }
+  pagination.innerHTML = rows.length > TABLE_PAGE_SIZE ? `
+    <button class="secondary" type="button" data-page="prev" ${page === 1 ? "disabled" : ""}>← Précédent</button>
+    <span>Page <strong>${page}</strong> / ${totalPages} · ${rows.length} ligne(s)</span>
+    <button class="secondary" type="button" data-page="next" ${page === totalPages ? "disabled" : ""}>Suivant →</button>
+  ` : rows.length ? `<span>${rows.length} ligne(s)</span>` : "";
+  pagination.querySelector('[data-page="prev"]')?.addEventListener("click", () => {
+    tablePageState[key] = page - 1;
+    renderPaginatedTable(key, tbodyId, rows, rowRenderer, emptyHtml);
+  });
+  pagination.querySelector('[data-page="next"]')?.addEventListener("click", () => {
+    tablePageState[key] = page + 1;
+    renderPaginatedTable(key, tbodyId, rows, rowRenderer, emptyHtml);
+  });
+}
+
+// Delegate navigation at document level so the side menu remains usable even
+// if a later, feature-specific control is absent or fails during startup.
+document.addEventListener("click", (event) => {
+  const link = event.target.closest(".nav [data-tab]");
+  if (link) switchTab(link.dataset.tab);
+});
+
+function escapeHtml(value) {
+  return String(value ?? "").replace(/[&<>"']/g, (character) => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;",
+  })[character]);
+}
+
+function toast(message) {
+  const element = $("toast");
+  element.textContent = message;
+  element.classList.add("show");
+  clearTimeout(window.__toastTimer);
+  window.__toastTimer = setTimeout(() => element.classList.remove("show"), 3500);
+}
+
+function formatTime(value) {
+  if (!value) return "—";
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? "—" : date.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+}
+
+function formatDate(value) {
+  if (!value) return "—";
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? "—" : date.toLocaleString("fr-FR");
+}
+
+function localSplLocation(value) {
+  const match = String(value || "").trim().toUpperCase().match(
+    /^([^\s-]+)-([^\s-]+)-\d{3}(?:1)?\.\d{1,2}$/,
+  );
+  return match ? { odf: match[1], zr: `${match[1]}-${match[2]}` } : null;
+}
+
+async function api(url, options = {}) {
+  options.headers = { ...(options.headers || {}), "X-Requested-With": "FB-EMM" };
+  const response = await fetch(appUrl(url), options);
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok || data.ok === false) {
+    const error = new Error(data.error || "Erreur de communication avec l’application.");
+    error.data = data;
+    throw error;
+  }
+  return data;
+}
+
+function switchTab(name) {
+  document.querySelectorAll(".tab").forEach((element) => element.classList.remove("active"));
+  document.querySelectorAll(".nav [data-tab]").forEach((element) => element.classList.toggle("active", element.dataset.tab === name));
+  $(`tab-${name}`).classList.add("active");
+  const headings = {
+    check: ["FB EMM · Contrôle PCO", "Génération SPL et vérification des ports libres"],
+    assign: ["FB EMM · Affectation automatique", "Mutation du Login vers le premier port utilisable"],
+    bulk: ["FB EMM · Bulk Mutation CMD&Login", "Mutation Excel avec PCO et brin exacts"],
+    renseigner: ["FB EMM · Renseigner PCOs", "Collecte des Logins et constitutions actuelles"],
+    commandes: ["FB EMM · Collecte données ConnectFlow", "Collecte PCO, splitter et ONT par CMD"],
+    available: ["FB EMM · PCO disponibles", "Collection des ports disponibles pour les prochaines fonctions"],
+    config: ["FB EMM · Configuration", "Paramètres locaux de WimTech et Selenium"],
+  };
+  $("pageTitle").textContent = headings[name][0];
+  $("pageSubtitle").textContent = headings[name][1];
+  if (name === "available") loadLatestAvailable();
+}
+
+async function previewSpl() {
+  const spl = $("splInput").value.trim();
+  if (!spl) {
+    $("odfPreview").textContent = "—";
+    $("zrPreview").textContent = "—";
+    return;
+  }
+  const local = localSplLocation(spl);
+  if (local) {
+    $("odfPreview").textContent = local.odf;
+    $("zrPreview").textContent = local.zr;
+  }
+  try {
+    const data = await api("/api/generate-pcos", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ spl }),
+    });
+    $("odfPreview").textContent = data.odf;
+    $("zrPreview").textContent = data.zr;
+  } catch (_) {
+    if (!local) {
+      $("odfPreview").textContent = "—";
+      $("zrPreview").textContent = "—";
+    }
+  }
+}
+
+async function previewAssignmentSpl() {
+  const spl = $("assignSplInput").value.trim();
+  if (!spl) {
+    $("assignOdfPreview").textContent = "—";
+    $("assignZrPreview").textContent = "—";
+    return;
+  }
+  const local = localSplLocation(spl);
+  if (local) {
+    $("assignOdfPreview").textContent = local.odf;
+    $("assignZrPreview").textContent = local.zr;
+  }
+  try {
+    const data = await api("/api/generate-pcos", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ spl }),
+    });
+    $("assignOdfPreview").textContent = data.odf;
+    $("assignZrPreview").textContent = data.zr;
+  } catch (_) {
+    if (!local) {
+      $("assignOdfPreview").textContent = "—";
+      $("assignZrPreview").textContent = "—";
+    }
+  }
+}
+
+function statusClass(status) {
+  return ({ AVAILABLE: "ok", ASSIGNED: "ok", MUTATED: "ok", ALREADY_CONSTITUTED: "warning", SATURATED: "saturated", NOT_FOUND: "missing", NOT_CREATED: "missing", BRIN_NOT_FOUND: "missing", SEARCH_FAILED: "missing", INVALID: "error", NO_MUTATION_ACTION: "warning", ERROR: "error", MUTATION_UNKNOWN: "error", UNKNOWN: "warning", SKIPPED: "skipped", PENDING: "wait" })[status] || "wait";
+}
+
+function renderRows(rows) {
+  renderPaginatedTable("check", "resultsBody", rows || [], (row, index) => `
+    <tr>
+      <td>${String(index + 1).padStart(2, "0")}</td>
+      <td class="pco-code">${escapeHtml(row.pco)}</td>
+      <td><span class="row-status ${statusClass(row.status)}">${escapeHtml(row.status_label)}</span></td>
+      <td>${escapeHtml((row.free_ports || []).join(" · ") || "—")}</td>
+      <td><strong>${Number(row.free_count || 0)}</strong></td>
+      <td>${row.duration_seconds == null ? "—" : `${Number(row.duration_seconds).toFixed(1)} s`}</td>
+      <td class="message-cell">${escapeHtml(row.message || "—")}</td>
+    </tr>
+  `, '<tr><td colspan="7" class="empty"><strong>Aucun contrôle lancé</strong><span>Saisissez un SPL puis lancez la vérification.</span></td></tr>');
+}
+
+function renderLogs(logs) {
+  if (!logs?.length) {
+    $("liveLog").innerHTML = '<div class="log-line"><time>—</time><span>En attente du lancement de Selenium…</span></div>';
+    return;
+  }
+  $("liveLog").innerHTML = logs.map((line) => `
+    <div class="log-line ${escapeHtml(line.level.toLowerCase())}">
+      <time>${escapeHtml(formatTime(line.time))}</time><span>${escapeHtml(line.message)}</span>
+    </div>
+  `).join("");
+  $("liveLog").scrollTop = $("liveLog").scrollHeight;
+}
+
+function renderAssignmentRows(job) {
+  const rows = job?.results || [];
+  renderPaginatedTable("assignment", "assignResultsBody", rows, (row, index) => {
+    const login = row.login || job.login || "";
+    const spl = row.spl || job.spl || "";
+    return `
+    <tr>
+      <td>${escapeHtml(row.excel_row || String(index + 1).padStart(2, "0"))}</td>
+      <td>${escapeHtml(login || "—")}</td>
+      <td class="pco-code">${escapeHtml(spl || "—")}</td>
+      <td class="pco-code">${escapeHtml(row.pco || "—")}</td>
+      <td><strong>${escapeHtml(row.selected_port || "—")}</strong></td>
+      <td><span class="row-status ${statusClass(row.status)}">${escapeHtml(row.status_label)}</span></td>
+      <td>${row.duration_seconds == null ? "—" : `${Number(row.duration_seconds).toFixed(1)} s`}</td>
+      <td class="pco-code">${escapeHtml(row.msan_port || "")}</td>
+      <td class="message-cell">${escapeHtml(row.message || "—")}</td>
+    </tr>
+  `; }, '<tr><td colspan="9" class="empty"><strong>Aucune affectation lancée</strong><span>Sélectionnez un mode d\'affectation.</span></td></tr>');
+}
+
+function selectedAssignmentMode() {
+  return document.querySelector('input[name="assignmentMode"]:checked')?.value || "single";
+}
+
+function updateAssignmentMode() {
+  const mode = selectedAssignmentMode();
+  $("assignModeSingle").classList.toggle("is-hidden", mode !== "single");
+  $("assignModeBatch").classList.toggle("is-hidden", mode !== "batch");
+  $("assignModeLogins").classList.toggle("is-hidden", mode !== "logins");
+}
+
+function renderAssignmentLogs(logs) {
+  if (!logs?.length) {
+    $("assignLiveLog").innerHTML = '<div class="log-line"><time>—</time><span>En attente du lancement de Selenium…</span></div>';
+    return;
+  }
+  $("assignLiveLog").innerHTML = logs.map((line) => `
+    <div class="log-line ${escapeHtml(line.level.toLowerCase())}">
+      <time>${escapeHtml(formatTime(line.time))}</time><span>${escapeHtml(line.message)}</span>
+    </div>
+  `).join("");
+  $("assignLiveLog").scrollTop = $("assignLiveLog").scrollHeight;
+}
+
+function renderAssignmentJob(job) {
+  if (job.kind === "BATCH_ASSIGNMENT") {
+    $("assignTotalStat").textContent = job.total;
+    const assignedCount = job.results.filter((row) => row.status === "ASSIGNED").length;
+    const existingCount = job.results.filter((row) => row.status === "ALREADY_CONSTITUTED").length;
+    $("assignOutcomeStat").textContent = `${assignedCount} affecté(s)${existingCount ? ` · ${existingCount} déjà constitué(s)` : ""}`;
+    $("assignMissingStat").textContent = job.results.filter((row) => row.status === "INVALID").length;
+    $("assignSaturatedStat").textContent = job.results.filter((row) => row.status === "NO_PORT").length;
+    $("assignProgressBar").style.width = `${job.progress_percent}%`;
+    $("assignStatusBadge").textContent = ({ RUNNING: "En cours", STOPPING: "Arrêt…", STOPPED: "Arrêté", COMPLETED: "Terminé", REVIEW_REQUIRED: "À confirmer", ERROR: "Erreur", QUEUED: "Préparation" })[job.status] || job.status;
+    renderAssignmentRows(job);
+    renderAssignmentLogs(job.logs);
+    const active = ["QUEUED", "RUNNING", "STOPPING"].includes(job.status);
+    $("assignStartBtn").disabled = active; $("assignStopBtn").disabled = !active; $("assignClearBtn").disabled = active;
+    $("assignDownloadBtn").href = active ? "#" : appUrl(`/api/assign/${job.job_id}/result.xlsx`);
+    $("assignDownloadBtn").classList.toggle("disabled", active);
+    if (!active) $("assignMessage").innerHTML = `<div class="${job.status === "ERROR" ? "error" : "success"}"><strong>Affectation en lot ${job.status === "COMPLETED" ? "terminée" : job.status.toLowerCase()}.</strong> ${job.completed_count} / ${job.total} ligne(s) traitée(s).</div>`;
+    return;
+  }
+  const assigned = job.assigned_result;
+  const existing = (job.results || []).find((row) => row.status === "ALREADY_CONSTITUTED");
+  $("assignTotalStat").textContent = job.total;
+  $("assignOutcomeStat").textContent = assigned ? `Port ${assigned.selected_port}` : existing ? "Déjà constitué" : (job.status === "COMPLETED" ? "Aucun" : "—");
+  $("assignMissingStat").textContent = job.not_found_count;
+  $("assignSaturatedStat").textContent = job.saturated_count;
+  $("assignProgressBar").style.width = `${job.progress_percent}%`;
+  $("assignStatusBadge").textContent = ({ RUNNING: "En cours", STOPPING: "Arrêt…", STOPPED: "Arrêté", COMPLETED: "Terminé", REVIEW_REQUIRED: "À confirmer", ERROR: "Erreur", QUEUED: "Préparation" })[job.status] || job.status;
+  $("assignStatusBadge").className = `badge ${assigned ? "ok" : existing ? "warning" : job.status === "REVIEW_REQUIRED" ? "error" : job.status === "ERROR" ? "error" : "neutral"}`;
+  renderAssignmentRows(job);
+  renderAssignmentLogs(job.logs);
+
+  const active = ["QUEUED", "RUNNING", "STOPPING"].includes(job.status);
+  $("assignStartBtn").disabled = active;
+  $("assignStopBtn").disabled = !["QUEUED", "RUNNING"].includes(job.status);
+  $("assignClearBtn").disabled = active;
+  $("assignDownloadBtn").href = active ? "#" : appUrl(`/api/assign/${job.job_id}/result.xlsx`);
+  $("assignDownloadBtn").classList.toggle("disabled", active);
+
+  if (job.status === "COMPLETED" && assigned) {
+    $("assignMessage").innerHTML = `<div class="success"><strong>Affectation terminée.</strong> Login ${escapeHtml(job.login)} affecté à <span class="pco-code">${escapeHtml(assigned.pco)}</span>, port <strong>${escapeHtml(assigned.selected_port)}</strong>.</div>`;
+  } else if (job.status === "COMPLETED" && existing) {
+    $("assignMessage").innerHTML = `<div class="warning"><strong>Login déjà constitué.</strong> Constitution conservée sans mutation : SPL <span class="pco-code">${escapeHtml(existing.spl || job.spl || "—")}</span>, PCO <span class="pco-code">${escapeHtml(existing.pco || "—")}</span>, brin <strong>${escapeHtml(existing.selected_port || "—")}</strong>.</div>`;
+  } else if (job.status === "COMPLETED") {
+    const summaries = job.summary_message ? [job.summary_message] : [...new Set((job.results || []).filter((row) => row.status === "NO_PORT").map((row) => row.message).filter(Boolean))];
+    $("assignMessage").innerHTML = summaries.length
+      ? `<div class="warning"><strong>Aucun port utilisable.</strong><br>${summaries.map(escapeHtml).join("<br>")}</div>`
+      : '<div class="warning"><strong>Aucun port utilisable.</strong> Consultez la liste complète ci-dessous pour voir les PCO saturés, inexistants ou ignorés.</div>';
+  } else if (job.status === "REVIEW_REQUIRED") {
+    $("assignMessage").innerHTML = '<div class="error"><strong>Contrôle manuel obligatoire.</strong> La mutation a commencé mais sa confirmation finale est incertaine. Vérifiez WimTech avant de relancer.</div>';
+  } else if (job.status === "ERROR") {
+    $("assignMessage").innerHTML = `<div class="error"><strong>Erreur :</strong> ${escapeHtml(job.error || "Affectation interrompue.")}</div>`;
+  } else if (job.status === "STOPPED") {
+    $("assignMessage").innerHTML = '<div class="warning"><strong>Affectation arrêtée.</strong> Les PCO non parcourus restent en attente.</div>';
+  }
+}
+
+async function pollAssignmentJob() {
+  if (!currentAssignmentJobId) return;
+  try {
+    const data = await api(`/api/assign/${currentAssignmentJobId}`);
+    renderAssignmentJob(data.job);
+    if (["COMPLETED", "STOPPED", "REVIEW_REQUIRED", "ERROR"].includes(data.job.status)) {
+      clearInterval(assignmentPollTimer);
+      assignmentPollTimer = null;
+    }
+  } catch (error) {
+    clearInterval(assignmentPollTimer);
+    assignmentPollTimer = null;
+    toast(error.message);
+  }
+}
+
+async function startAssignment() {
+  const mode = selectedAssignmentMode();
+  if (mode === "batch") {
+    const batchFile = $("assignBatchFile").files[0];
+    if (!batchFile) return toast("Sélectionnez le fichier Excel Login/SPL.");
+    const formData = new FormData(); formData.append("file", batchFile); formData.append("replace_existing", $("assignReplaceExisting").checked ? "true" : "false"); formData.append("show_zr_in_message", $("assignShowZrInMessage").checked ? "true" : "false");
+    $("assignMessage").innerHTML = '<div class="notice">Lecture du fichier Login/SPL…</div>';
+    $("assignStartBtn").disabled = true;
+    try {
+      const data = await api("/api/assign/batch/start", { method: "POST", body: formData });
+      currentAssignmentJobId = data.job_id; renderAssignmentJob(data.job);
+      clearInterval(assignmentPollTimer); assignmentPollTimer = setInterval(pollAssignmentJob, 800); pollAssignmentJob();
+    } catch (error) { $("assignStartBtn").disabled = false; $("assignMessage").innerHTML = `<div class="error"><strong>Erreur :</strong> ${escapeHtml(error.message)}</div>`; }
+    return;
+  }
+  if (mode === "logins") {
+    const loginList = $("assignLoginsText").value.trim();
+    if (!loginList) return toast("Saisissez au moins un Login.");
+    $("assignMessage").innerHTML = '<div class="notice">Recherche des ports MSAN et des SPL…</div>';
+    $("assignStartBtn").disabled = true;
+    try {
+      const data = await api("/api/assign/logins/start", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ logins: loginList, replace_existing: $("assignReplaceExisting").checked, show_zr_in_message: $("assignShowZrInMessage").checked }),
+      });
+      currentAssignmentJobId = data.job_id; renderAssignmentJob(data.job);
+      clearInterval(assignmentPollTimer);
+      assignmentPollTimer = setInterval(pollAssignmentJob, 800); pollAssignmentJob();
+    } catch (error) {
+      $("assignStartBtn").disabled = false;
+      $("assignMessage").innerHTML = `<div class="error"><strong>Erreur :</strong> ${escapeHtml(error.message)}</div>`;
+    }
+    return;
+  }
+  const login = $("assignLoginInput").value.trim();
+  const spl = $("assignSplInput").value.trim();
+  if (!login) return toast("Saisissez le Login client.");
+  if (!spl) return toast("Saisissez le SPL du client.");
+  $("assignMessage").innerHTML = '<div class="notice">Préparation de l’affectation Selenium…</div>';
+  $("assignStartBtn").disabled = true;
+  try {
+    const data = await api("/api/assign/start", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ login, spl, replace_existing: $("assignReplaceExisting").checked, show_zr_in_message: $("assignShowZrInMessage").checked }),
+    });
+    currentAssignmentJobId = data.job_id;
+    renderAssignmentJob(data.job);
+    clearInterval(assignmentPollTimer);
+    assignmentPollTimer = setInterval(pollAssignmentJob, 800);
+    pollAssignmentJob();
+  } catch (error) {
+    $("assignStartBtn").disabled = false;
+    $("assignMessage").innerHTML = `<div class="error"><strong>Erreur :</strong> ${escapeHtml(error.message)}</div>`;
+  }
+}
+
+async function previewAssignmentBatchFile() {
+  const file = $("assignBatchFile").files[0];
+  if (!file) {
+    renderAssignmentRows(null);
+    return;
+  }
+  const formData = new FormData();
+  formData.append("file", file);
+  $("assignMessage").innerHTML = '<div class="notice">Lecture de l’aperçu Excel…</div>';
+  try {
+    const data = await api("/api/assign/batch/preview", { method: "POST", body: formData });
+    const rows = data.rows.map((row) => ({
+      ...row,
+      pco: null,
+      selected_port: null,
+      status: row.validation_error ? "INVALID" : "PENDING",
+      status_label: row.validation_error ? "Ligne invalide" : "Prêt à lancer",
+      message: row.validation_error || "Aperçu : aucune action lancée.",
+    }));
+    renderAssignmentRows({ results: rows });
+    $("assignMessage").innerHTML = `<div class="notice"><strong>Aperçu prêt.</strong> ${rows.length} ligne(s) lue(s) ; aucune automatisation n’a été lancée.</div>`;
+  } catch (error) {
+    renderAssignmentRows(null);
+    $("assignMessage").innerHTML = `<div class="error"><strong>Erreur :</strong> ${escapeHtml(error.message)}</div>`;
+  }
+}
+
+async function stopAssignment() {
+  if (!currentAssignmentJobId) return;
+  try {
+    await api(`/api/assign/${currentAssignmentJobId}/stop`, { method: "POST" });
+    await pollAssignmentJob();
+  } catch (error) {
+    toast(error.message);
+  }
+}
+
+function clearAssignment() {
+  currentAssignmentJobId = null;
+  clearInterval(assignmentPollTimer);
+  assignmentPollTimer = null;
+  $("assignTotalStat").textContent = "0";
+  $("assignOutcomeStat").textContent = "—";
+  $("assignMissingStat").textContent = "0";
+  $("assignSaturatedStat").textContent = "0";
+  $("assignProgressBar").style.width = "0%";
+  $("assignStatusBadge").textContent = "En attente";
+  $("assignStatusBadge").className = "badge neutral";
+  $("assignDownloadBtn").href = "#";
+  $("assignDownloadBtn").classList.add("disabled");
+  $("assignMessage").innerHTML = "";
+  $("assignBatchFile").value = "";
+  $("assignLoginsText").value = "";
+  renderAssignmentRows(null);
+  renderAssignmentLogs([]);
+  $("assignStartBtn").disabled = false;
+  $("assignStopBtn").disabled = true;
+}
+
+async function resolveMsanPort() {
+  const port = $("assignMsanPort").value.trim();
+  if (!port) return toast("Saisissez le port MSAN.");
+  try { const data = await api(`/api/config/msan-mapping/resolve?port=${encodeURIComponent(port)}`); $("assignSplInput").value = data.spl; previewAssignmentSpl(); toast(`SPL trouvé : ${data.spl}`); }
+  catch (error) { toast(error.message); }
+}
+
+async function uploadMsanMapping() {
+  const file = $("msanMappingFile").files[0]; if (!file) return toast("Sélectionnez le fichier Carte/SPL.");
+  const formData = new FormData(); formData.append("file", file);
+  try { const data = await api("/api/config/msan-mapping", { method: "POST", body: formData }); toast(`${data.count} correspondance(s) importée(s).`); }
+  catch (error) { toast(error.message); }
+}
+
+function renderBulkRows(rows) {
+  renderPaginatedTable("bulk", "bulkResultsBody", rows || [], (row) => `
+    <tr>
+      <td>${escapeHtml(row.excel_row || "—")}</td>
+      <td class="pco-code">${escapeHtml(row.command || "—")}</td>
+      <td>${escapeHtml(row.login || "—")}</td>
+      <td class="pco-code">${escapeHtml(row.pco || "—")}</td>
+      <td><strong>${escapeHtml(row.brin || "—")}</strong></td>
+      <td>${escapeHtml(row.search_mode || "—")}</td>
+      <td>${escapeHtml(row.previous_login || "—")}</td>
+      <td class="pco-code">${escapeHtml(row.spl || "—")}</td>
+      <td><span class="row-status ${statusClass(row.status)}">${escapeHtml(row.status_label)}</span></td>
+      <td class="pco-code">${escapeHtml(row.port_spl || "—")}</td>
+      <td class="pco-code">${escapeHtml(row.msan_port || "—")}</td>
+      <td>${row.duration_seconds == null ? "—" : `${Number(row.duration_seconds).toFixed(1)} s`}</td>
+      <td class="message-cell">${escapeHtml(row.message || "—")}</td>
+    </tr>
+  `, '<tr><td colspan="13" class="empty"><strong>Aucun fichier traité</strong><span>Sélectionnez un fichier Excel puis lancez Bulk Mutation.</span></td></tr>');
+}
+
+function renderBulkLogs(logs) {
+  if (!logs?.length) {
+    $("bulkLiveLog").innerHTML = '<div class="log-line"><time>—</time><span>En attente du fichier Excel…</span></div>';
+    return;
+  }
+  $("bulkLiveLog").innerHTML = logs.map((line) => `
+    <div class="log-line ${escapeHtml(line.level.toLowerCase())}">
+      <time>${escapeHtml(formatTime(line.time))}</time><span>${escapeHtml(line.message)}</span>
+    </div>
+  `).join("");
+  $("bulkLiveLog").scrollTop = $("bulkLiveLog").scrollHeight;
+}
+
+function renderBulkJob(job) {
+  $("bulkTotalStat").textContent = job.total;
+  $("bulkSuccessStat").textContent = job.bulk_success_count;
+  $("bulkFailedStat").textContent = job.bulk_failed_count;
+  $("bulkProgressStat").textContent = `${job.completed_count} / ${job.total}`;
+  $("bulkProgressBar").style.width = `${job.progress_percent}%`;
+  $("bulkStatusBadge").textContent = ({ RUNNING: "En cours", STOPPING: "Arrêt…", STOPPED: "Arrêté", COMPLETED: "Terminé", REVIEW_REQUIRED: "À confirmer", ERROR: "Erreur", QUEUED: "Préparation" })[job.status] || job.status;
+  $("bulkStatusBadge").className = `badge ${job.status === "COMPLETED" ? "ok" : ["REVIEW_REQUIRED", "ERROR"].includes(job.status) ? "error" : "neutral"}`;
+  renderBulkRows(job.results);
+  renderBulkLogs(job.logs);
+
+  const active = ["QUEUED", "RUNNING", "STOPPING"].includes(job.status);
+  $("bulkStartBtn").disabled = active;
+  $("bulkStopBtn").disabled = !["QUEUED", "RUNNING"].includes(job.status);
+  $("bulkClearBtn").disabled = active;
+  $("bulkFileInput").disabled = active;
+
+  const download = $("bulkDownloadBtn");
+  download.href = job.output_available ? appUrl(`/api/bulk/${job.job_id}/result.xlsx`) : "#";
+  download.classList.toggle("disabled", !job.output_available);
+
+  if (job.status === "COMPLETED") {
+    $("bulkMessage").innerHTML = `<div class="success"><strong>Bulk terminé.</strong> ${job.bulk_success_count} mutation(s) réussie(s), ${job.bulk_failed_count} ligne(s) non mutée(s).${job.output_available ? " Le fichier résultat est prêt." : ""}</div>`;
+  } else if (job.status === "REVIEW_REQUIRED") {
+    $("bulkMessage").innerHTML = '<div class="error"><strong>Contrôle manuel obligatoire.</strong> Une mutation a commencé sans confirmation finale. Le Bulk a été arrêté pour éviter une double mutation.</div>';
+  } else if (job.status === "STOPPED") {
+    $("bulkMessage").innerHTML = '<div class="warning"><strong>Bulk arrêté.</strong> Le fichier résultat contient les lignes déjà traitées.</div>';
+  } else if (job.status === "ERROR") {
+    $("bulkMessage").innerHTML = `<div class="error"><strong>Erreur :</strong> ${escapeHtml(job.error || "Traitement Bulk interrompu.")}</div>`;
+  }
+}
+
+async function pollBulkJob() {
+  if (!currentBulkJobId) return;
+  try {
+    const data = await api(`/api/bulk/${currentBulkJobId}`);
+    renderBulkJob(data.job);
+    if (["COMPLETED", "STOPPED", "REVIEW_REQUIRED", "ERROR"].includes(data.job.status)) {
+      clearInterval(bulkPollTimer);
+      bulkPollTimer = null;
+    }
+  } catch (error) {
+    clearInterval(bulkPollTimer);
+    bulkPollTimer = null;
+    toast(error.message);
+  }
+}
+
+async function startBulkMutation() {
+  const file = $("bulkFileInput").files[0];
+  if (!file) return toast("Sélectionnez un fichier Excel .xlsx ou .xlsm.");
+  const formData = new FormData();
+  formData.append("file", file);
+  $("bulkMessage").innerHTML = '<div class="notice">Lecture du fichier puis préparation de Bulk Mutation…</div>';
+  $("bulkStartBtn").disabled = true;
+  try {
+    const data = await api("/api/bulk/start", { method: "POST", body: formData });
+    currentBulkJobId = data.job_id;
+    renderBulkJob(data.job);
+    clearInterval(bulkPollTimer);
+    bulkPollTimer = setInterval(pollBulkJob, 900);
+    pollBulkJob();
+  } catch (error) {
+    $("bulkStartBtn").disabled = false;
+    $("bulkMessage").innerHTML = `<div class="error"><strong>Erreur :</strong> ${escapeHtml(error.message)}</div>`;
+  }
+}
+
+async function stopBulkMutation() {
+  if (!currentBulkJobId) return;
+  try {
+    await api(`/api/bulk/${currentBulkJobId}/stop`, { method: "POST" });
+    await pollBulkJob();
+  } catch (error) {
+    toast(error.message);
+  }
+}
+
+function clearBulkMutation() {
+  currentBulkJobId = null;
+  clearInterval(bulkPollTimer);
+  bulkPollTimer = null;
+  $("bulkFileInput").value = "";
+  $("bulkFileInput").disabled = false;
+  $("bulkFileMeta").textContent = "Aucun fichier sélectionné.";
+  $("bulkTotalStat").textContent = "0";
+  $("bulkSuccessStat").textContent = "0";
+  $("bulkFailedStat").textContent = "0";
+  $("bulkProgressStat").textContent = "0 / 0";
+  $("bulkProgressBar").style.width = "0%";
+  $("bulkStatusBadge").textContent = "En attente";
+  $("bulkStatusBadge").className = "badge neutral";
+  $("bulkMessage").innerHTML = "";
+  renderBulkRows([]);
+  renderBulkLogs([]);
+  $("bulkStartBtn").disabled = false;
+  $("bulkStopBtn").disabled = true;
+  $("bulkDownloadBtn").href = "#";
+  $("bulkDownloadBtn").classList.add("disabled");
+}
+
+function updateBulkFileMeta() {
+  const file = $("bulkFileInput").files[0];
+  $("bulkFileMeta").innerHTML = file
+    ? `<strong>${escapeHtml(file.name)}</strong> · ${(file.size / 1024).toFixed(1)} Ko · colonnes requises : Commande GPON, Login, ODF, PCO, brin`
+    : "Aucun fichier sélectionné.";
+}
+
+function renseignerMode() { return document.querySelector('input[name="renseignerMode"]:checked').value; }
+function renderRenseigner(job) {
+  latestRenseignerRows = job.results || [];
+  $("renseignerStatusBadge").textContent = job.status === "COMPLETED" ? "Terminé" : job.status === "RUNNING" ? "En cours" : job.status;
+  $("renseignerStatusBadge").className = `badge ${job.status === "COMPLETED" ? "ok" : job.status === "ERROR" ? "error" : "neutral"}`;
+  $("renseignerProgressBar").style.width = `${job.progress_percent || 0}%`;
+  renderPaginatedTable("renseigner", "renseignerResultsBody", latestRenseignerRows, (row) => `<tr><td>${row.excel_row}</td><td>${escapeHtml(row.input)}</td><td>${escapeHtml(row.login || "—")}</td><td>${escapeHtml(row.source || "—")}</td><td>${escapeHtml(row.constitution_search_mode || "—")}</td><td class="pco-code">${escapeHtml(row.constitution_spl || "—")}</td><td class="pco-code">${escapeHtml(row.constitution_pco || "—")}</td><td>${escapeHtml(row.constitution_brin || "—")}</td><td class="pco-code">${escapeHtml(row.msan_port || "—")}</td><td><span class="row-status ${statusClass(row.status)}">${escapeHtml(row.status_label)}</span></td><td>${row.duration_seconds == null ? "—" : `${Number(row.duration_seconds).toFixed(1)} s`}</td><td class="message-cell">${escapeHtml(row.message || "—")}</td></tr>`, '<tr><td colspan="12" class="empty"><strong>Aucune collecte lancée</strong></td></tr>');
+  $("renseignerLog").innerHTML = (job.logs || []).map((line) => `<div class="log-line ${escapeHtml(line.level.toLowerCase())}"><time>${escapeHtml(formatTime(line.time))}</time><span>${escapeHtml(line.message)}</span></div>`).join("");
+  const active = ["QUEUED", "RUNNING", "STOPPING"].includes(job.status);
+  $("renseignerStartBtn").disabled = active; $("renseignerStopBtn").disabled = !active;
+  $("renseignerDownloadBtn").href = !active ? appUrl(`/api/renseigner/${job.job_id}/result.xlsx`) : "#"; $("renseignerDownloadBtn").classList.toggle("disabled", active);
+}
+async function pollRenseigner() { if (!currentRenseignerJobId) return; try { const data = await api(`/api/renseigner/${currentRenseignerJobId}`); renderRenseigner(data.job); if (["COMPLETED", "STOPPED", "ERROR"].includes(data.job.status)) { clearInterval(renseignerPollTimer); renseignerPollTimer = null; } } catch (error) { toast(error.message); } }
+async function startRenseigner() { const values = $("renseignerValues").value.trim(); if (!values) return toast("Saisissez au moins une valeur."); try { const data = await api("/api/renseigner/start", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ mode: renseignerMode(), values }) }); currentRenseignerJobId = data.job_id; renderRenseigner(data.job); renseignerPollTimer = setInterval(pollRenseigner, 900); } catch (error) { $("renseignerMessage").innerHTML = `<div class="error">${escapeHtml(error.message)}</div>`; } }
+async function stopRenseigner() { if (currentRenseignerJobId) await api(`/api/renseigner/${currentRenseignerJobId}/stop`, { method: "POST" }); }
+function updateRenseignerMode() { const mode = renseignerMode(); $("renseignerValuesLabel").textContent = mode === "LOGIN" ? "Liste de Logins" : "Liste de CMD"; $("renseignerValues").placeholder = mode === "LOGIN" ? "Un Login par ligne" : "Un CMD par ligne"; }
+function clearRenseigner() { currentRenseignerJobId = null; latestRenseignerRows = []; clearInterval(renseignerPollTimer); $("renseignerValues").value = ""; renderPaginatedTable("renseigner", "renseignerResultsBody", [], () => "", '<tr><td colspan="12" class="empty"><strong>Aucune collecte lancée</strong></td></tr>'); $("renseignerLog").innerHTML = ""; $("renseignerStatusBadge").textContent = "En attente"; $("renseignerDownloadBtn").classList.add("disabled"); }
+function copyRenseignerLogins() { const logins = latestRenseignerRows.map((row) => String(row.login || "").trim()).filter(Boolean); if (!logins.length) return toast("Aucun Login extrait à copier."); document.querySelector('input[name="renseignerMode"][value="LOGIN"]').checked = true; updateRenseignerMode(); $("renseignerValues").value = [...new Set(logins)].join("\n"); toast(`${logins.length} Login(s) copiés vers l’étape Login.`); }
+
+function renderCommandes(job) {
+  const rows = job.results || [];
+  const labels = { QUEUED: "Préparation", RUNNING: "En cours", STOPPING: "Arrêt…", STOPPED: "Arrêté", COMPLETED: "Terminé", ERROR: "Erreur" };
+  $("commandesStatusBadge").textContent = labels[job.status] || job.status;
+  $("commandesStatusBadge").className = `badge ${job.status === "COMPLETED" ? "ok" : job.status === "ERROR" ? "error" : "neutral"}`;
+  $("commandesProgressBar").style.width = `${job.progress_percent || 0}%`;
+  renderPaginatedTable("commandes", "commandesResultsBody", rows, (row) => `<tr><td>${escapeHtml(row.cmd)}</td><td>${escapeHtml(row.nom_splitter || "—")}</td><td>${escapeHtml(row.port_pco || "—")}</td><td class="pco-code">${escapeHtml(row.nom_pco || "—")}</td><td>${escapeHtml(row.modele_ont || "—")}</td><td>${escapeHtml(row.client_contacte || "—")}</td><td>${escapeHtml(row.distance_branchement || "—")}</td><td><span class="row-status ${statusClass(row.status)}">${escapeHtml(row.status_label)}</span></td><td>${row.duration_seconds == null ? "—" : `${Number(row.duration_seconds).toFixed(1)} s`}</td><td class="message-cell">${escapeHtml(row.message || "—")}</td></tr>`, '<tr><td colspan="10" class="empty"><strong>Aucune collecte lancée</strong></td></tr>');
+  $("commandesLog").innerHTML = (job.logs || []).map((line) => `<div class="log-line ${escapeHtml(line.level.toLowerCase())}"><time>${escapeHtml(formatTime(line.time))}</time><span>${escapeHtml(line.message)}</span></div>`).join("");
+  $("commandesLog").scrollTop = $("commandesLog").scrollHeight;
+  const active = ["QUEUED", "RUNNING", "STOPPING"].includes(job.status);
+  $("commandesStartBtn").disabled = active;
+  $("commandesStopBtn").disabled = !active;
+  $("commandesDownloadBtn").href = !active ? appUrl(`/api/commandes/${job.job_id}/result.xlsx`) : "#";
+  $("commandesDownloadBtn").classList.toggle("disabled", active);
+  if (job.status === "ERROR") $("commandesMessage").innerHTML = `<div class="error"><strong>Erreur :</strong> ${escapeHtml(job.error || "Collecte interrompue.")}</div>`;
+  else if (job.status === "COMPLETED") $("commandesMessage").innerHTML = `<div class="success"><strong>Collecte terminée.</strong> ${job.completed_count} / ${job.total} CMD traitée(s).</div>`;
+  else if (job.status === "RUNNING" && job.completed_count === 0) $("commandesMessage").innerHTML = '<div class="warning"><strong>Regardez Chrome.</strong> Saisissez le code temporaire pendant le compte à rebours de 10 secondes.</div>';
+}
+
+async function pollCommandes() {
+  if (!currentCommandesJobId) return;
+  try {
+    const data = await api(`/api/commandes/${currentCommandesJobId}`);
+    renderCommandes(data.job);
+    if (["COMPLETED", "STOPPED", "ERROR"].includes(data.job.status)) {
+      clearInterval(commandesPollTimer); commandesPollTimer = null;
+    }
+  } catch (error) { toast(error.message); }
+}
+
+async function startCommandes() {
+  const commands = $("commandesValues").value.trim();
+  if (!commands) return toast("Saisissez au moins une CMD.");
+  try {
+    const data = await api("/api/commandes/start", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ commands }) });
+    currentCommandesJobId = data.job_id;
+    renderCommandes(data.job);
+    clearInterval(commandesPollTimer);
+    commandesPollTimer = setInterval(pollCommandes, 700);
+    pollCommandes();
+  } catch (error) { $("commandesMessage").innerHTML = `<div class="error"><strong>Erreur :</strong> ${escapeHtml(error.message)}</div>`; }
+}
+
+async function stopCommandes() { if (currentCommandesJobId) await api(`/api/commandes/${currentCommandesJobId}/stop`, { method: "POST" }); }
+function clearCommandes() { currentCommandesJobId = null; clearInterval(commandesPollTimer); commandesPollTimer = null; $("commandesValues").value = ""; $("commandesMessage").innerHTML = ""; $("commandesLog").innerHTML = ""; $("commandesStatusBadge").textContent = "En attente"; $("commandesProgressBar").style.width = "0%"; $("commandesDownloadBtn").classList.add("disabled"); renderPaginatedTable("commandes", "commandesResultsBody", [], () => "", '<tr><td colspan="10" class="empty"><strong>Aucune collecte lancée</strong></td></tr>'); }
+
+async function uploadDegroupage() { const file = $("degroupageFile").files[0]; if (!file) return toast("Sélectionnez le fichier Degroupage."); const form = new FormData(); form.append("file", file); try { const data = await api("/api/config/degroupage", { method: "POST", body: form }); toast(`${data.count} CMD Degroupage importés.`); } catch (error) { toast(error.message); } }
+
+async function previewBulkFile() {
+  updateBulkFileMeta();
+  const file = $("bulkFileInput").files[0];
+  if (!file) {
+    renderBulkRows([]);
+    return;
+  }
+  const formData = new FormData();
+  formData.append("file", file);
+  $("bulkMessage").innerHTML = '<div class="notice">Lecture de l’aperçu Excel…</div>';
+  try {
+    const data = await api("/api/bulk/preview", { method: "POST", body: formData });
+    const rows = data.rows.map((row) => ({
+      ...row,
+      status: row.validation_error ? "INVALID" : "PENDING",
+      status_label: row.validation_error ? "Ligne invalide" : "Prêt à lancer",
+      search_mode: null,
+      previous_login: null,
+      spl: null,
+      port_spl: null,
+      msan_port: null,
+      message: row.validation_error || "Aperçu : aucune mutation lancée.",
+    }));
+    renderBulkRows(rows);
+    $("bulkTotalStat").textContent = rows.length;
+    $("bulkSuccessStat").textContent = "0";
+    $("bulkFailedStat").textContent = rows.filter((row) => row.validation_error).length;
+    $("bulkProgressStat").textContent = `0 / ${rows.length}`;
+    $("bulkProgressBar").style.width = "0%";
+    $("bulkMessage").innerHTML = `<div class="notice"><strong>Aperçu prêt.</strong> ${rows.length} ligne(s) lue(s) ; aucune mutation n’a été lancée.</div>`;
+  } catch (error) {
+    renderBulkRows([]);
+    $("bulkMessage").innerHTML = `<div class="error"><strong>Erreur :</strong> ${escapeHtml(error.message)}</div>`;
+  }
+}
+
+function renderJob(job) {
+  currentJob = job;
+  $("totalStat").textContent = job.total;
+  $("availableStat").textContent = job.available_count;
+  $("saturatedStat").textContent = job.saturated_count;
+  $("progressStat").textContent = `${job.completed_count} / ${job.total}`;
+  $("progressBar").style.width = `${job.progress_percent}%`;
+  $("jobStatusBadge").textContent = ({ RUNNING: "En cours", PAUSED: "En pause", STOPPING: "Arrêt…", STOPPED: "Arrêté", COMPLETED: "Terminé", ERROR: "Erreur", QUEUED: "Préparation" })[job.status] || job.status;
+  $("jobStatusBadge").className = `badge ${job.status === "COMPLETED" ? "ok" : job.status === "ERROR" ? "error" : job.status === "PAUSED" ? "warning" : "neutral"}`;
+  renderRows(job.results);
+  renderLogs(job.logs);
+
+  const active = ["QUEUED", "RUNNING", "PAUSED", "STOPPING"].includes(job.status);
+  $("startBtn").disabled = active;
+  $("pauseBtn").disabled = job.status !== "RUNNING";
+  $("resumeBtn").disabled = job.status !== "PAUSED";
+  $("stopBtn").disabled = !["RUNNING", "PAUSED"].includes(job.status);
+  $("clearBtn").disabled = active;
+  if (job.status === "COMPLETED") {
+    $("actionMessage").innerHTML = `<div class="success"><strong>Contrôle terminé.</strong> ${job.available_count} PCO disponible(s) conservé(s) pour les prochaines fonctions.</div>`;
+  } else if (job.status === "ERROR") {
+    $("actionMessage").innerHTML = `<div class="error"><strong>Erreur :</strong> ${escapeHtml(job.error || "Contrôle interrompu.")}</div>`;
+  }
+}
+
+async function pollJob() {
+  if (!currentJobId) return;
+  try {
+    const data = await api(`/api/check/${currentJobId}`);
+    renderJob(data.job);
+    if (["COMPLETED", "STOPPED", "ERROR"].includes(data.job.status)) {
+      clearInterval(pollTimer);
+      pollTimer = null;
+      loadLatestAvailable();
+    }
+  } catch (error) {
+    clearInterval(pollTimer);
+    pollTimer = null;
+    toast(error.message);
+  }
+}
+
+async function startCheck() {
+  const spl = $("splInput").value.trim();
+  if (!spl) return toast("Saisissez un numéro SPL.");
+  $("actionMessage").innerHTML = '<div class="notice">Préparation du contrôle Selenium…</div>';
+  $("startBtn").disabled = true;
+  try {
+    const data = await api("/api/check/start", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ spl }),
+    });
+    currentJobId = data.job_id;
+    renderJob(data.job);
+    clearInterval(pollTimer);
+    pollTimer = setInterval(pollJob, 800);
+    pollJob();
+  } catch (error) {
+    $("startBtn").disabled = false;
+    if (error.data?.job_id) currentJobId = error.data.job_id;
+    $("actionMessage").innerHTML = `<div class="error"><strong>Erreur :</strong> ${escapeHtml(error.message)}</div>`;
+  }
+}
+
+async function control(action) {
+  if (!currentJobId) return;
+  try {
+    await api(`/api/check/${currentJobId}/${action}`, { method: "POST" });
+    await pollJob();
+  } catch (error) {
+    toast(error.message);
+  }
+}
+
+function clearResults() {
+  currentJobId = null;
+  currentJob = null;
+  clearInterval(pollTimer);
+  pollTimer = null;
+  $("totalStat").textContent = "0";
+  $("availableStat").textContent = "0";
+  $("saturatedStat").textContent = "0";
+  $("progressStat").textContent = "0 / 0";
+  $("progressBar").style.width = "0%";
+  $("jobStatusBadge").textContent = "En attente";
+  $("jobStatusBadge").className = "badge neutral";
+  $("actionMessage").innerHTML = "";
+  renderRows([]);
+  renderLogs([]);
+  $("startBtn").disabled = false;
+  $("pauseBtn").disabled = true;
+  $("resumeBtn").disabled = true;
+  $("stopBtn").disabled = true;
+}
+
+async function loadLatestAvailable() {
+  try {
+    const data = await api("/api/available/latest");
+    const rows = data.available_pcos || [];
+    const availableCount = rows.filter((row) => row.status === "AVAILABLE").length;
+    const notCreatedCount = rows.filter((row) => row.status === "NOT_CREATED").length;
+    $("availableMeta").innerHTML = data.spl
+      ? `<strong>SPL ${escapeHtml(data.spl)}</strong> · ${availableCount} brin(s) disponible(s) · ${notCreatedCount} PCO non créé(s) · sauvegarde ${escapeHtml(formatDate(data.saved_at))}`
+      : "Aucun résultat disponible pour le moment.";
+    renderPaginatedTable("available", "availableBody", rows, (row, index) => `
+      <tr><td>${String(index + 1).padStart(2, "0")}</td><td class="pco-code">${escapeHtml(data.spl || "—")}</td><td class="pco-code">${escapeHtml(row.pco)}</td><td><strong>${escapeHtml(row.brin || "—")}</strong></td><td><span class="row-status ${statusClass(row.status)}">${escapeHtml(row.status_label)}</span></td><td>${escapeHtml(formatDate(row.checked_at))}</td></tr>
+    `, '<tr><td colspan="6" class="empty"><strong>Aucun PCO disponible</strong></td></tr>');
+    const link = $("downloadCsv");
+    const exportJobId = data.job_id || currentJobId;
+    link.href = exportJobId && rows.length ? appUrl(`/api/check/${exportJobId}/available.csv`) : "#";
+    link.classList.toggle("disabled", !exportJobId || !rows.length);
+    const excelLink = $("downloadAvailableExcel");
+    excelLink.href = exportJobId && rows.length ? appUrl(`/api/check/${exportJobId}/available.xlsx`) : "#";
+    excelLink.classList.toggle("disabled", !exportJobId || !rows.length);
+  } catch (error) {
+    toast(error.message);
+  }
+}
+
+async function loadConfig() {
+  try {
+    const data = await api("/api/config");
+    const config = data.config;
+    $("wimtechUrl").value = config.wimtech_url;
+    $("testLogin").value = config.test_login;
+    $("timeoutSeconds").value = config.timeout_seconds;
+    $("headless").checked = Boolean(config.headless);
+    $("debugMode").checked = Boolean(config.debug_mode);
+    $("actionDelaySeconds").value = Number(config.action_delay_seconds || 0);
+    updateDebugMode();
+    $("wiamUrl").value = config.wiam_url || "";
+    $("wiamUsername").value = config.wiam_username || "";
+    $("commandesUrl").value = config.commandes_url || "https://10.96.18.189/commandes";
+  } catch (error) {
+    toast(error.message);
+  }
+}
+
+function updateDebugMode() {
+  const enabled = $("debugMode").checked;
+  $("debugDelayField").classList.toggle("is-hidden", !enabled);
+  $("actionDelaySeconds").disabled = !enabled;
+}
+
+async function saveConfiguration(event) {
+  event.preventDefault();
+  try {
+    await api("/api/config", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        wimtech_url: $("wimtechUrl").value.trim(),
+        test_login: $("testLogin").value.trim(),
+        timeout_seconds: Number($("timeoutSeconds").value),
+        headless: $("headless").checked,
+        debug_mode: $("debugMode").checked,
+        action_delay_seconds: Number($("actionDelaySeconds").value || 0),
+        wiam_url: $("wiamUrl").value.trim(), wiam_username: $("wiamUsername").value.trim(), wiam_password: $("wiamPassword").value,
+        commandes_url: $("commandesUrl").value.trim(),
+      }),
+    });
+    toast("Configuration enregistrée.");
+  } catch (error) {
+    toast(error.message);
+  }
+}
+
+async function checkServer() {
+  try {
+    await api("/api/health");
+    $("serverDot").classList.add("ok");
+    $("serverStatus").textContent = "Application prête";
+  } catch (_) {
+    $("serverStatus").textContent = "Serveur indisponible";
+  }
+}
+
+$("splInput").addEventListener("input", () => { clearTimeout(window.__splPreview); window.__splPreview = setTimeout(previewSpl, 250); });
+$("splInput").addEventListener("keydown", (event) => { if (event.key === "Enter") startCheck(); });
+$("assignSplInput").addEventListener("input", () => { clearTimeout(window.__assignSplPreview); window.__assignSplPreview = setTimeout(previewAssignmentSpl, 250); });
+$("assignLoginInput").addEventListener("keydown", (event) => { if (event.key === "Enter") startAssignment(); });
+$("assignSplInput").addEventListener("keydown", (event) => { if (event.key === "Enter") startAssignment(); });
+$("startBtn").addEventListener("click", startCheck);
+$("pauseBtn").addEventListener("click", () => control("pause"));
+$("resumeBtn").addEventListener("click", () => control("resume"));
+$("stopBtn").addEventListener("click", () => control("stop"));
+$("clearBtn").addEventListener("click", clearResults);
+$("assignStartBtn").addEventListener("click", startAssignment);
+$("assignStopBtn").addEventListener("click", stopAssignment);
+$("assignClearBtn").addEventListener("click", clearAssignment);
+document.querySelectorAll('input[name="assignmentMode"]').forEach((radio) => radio.addEventListener("change", updateAssignmentMode));
+$("assignDownloadBtn").addEventListener("click", (event) => { if (event.currentTarget.classList.contains("disabled")) event.preventDefault(); });
+$("resolveMsanBtn").addEventListener("click", resolveMsanPort);
+$("uploadMsanMappingBtn").addEventListener("click", uploadMsanMapping);
+$("uploadDegroupageBtn").addEventListener("click", uploadDegroupage);
+$("renseignerStartBtn").addEventListener("click", startRenseigner);
+$("renseignerStopBtn").addEventListener("click", stopRenseigner);
+$("renseignerClearBtn").addEventListener("click", clearRenseigner);
+$("renseignerCopyLoginsBtn").addEventListener("click", copyRenseignerLogins);
+$("commandesStartBtn").addEventListener("click", startCommandes);
+$("commandesStopBtn").addEventListener("click", stopCommandes);
+$("commandesClearBtn").addEventListener("click", clearCommandes);
+$("commandesDownloadBtn").addEventListener("click", (event) => { if (event.currentTarget.classList.contains("disabled")) event.preventDefault(); });
+document.querySelectorAll('input[name="renseignerMode"]').forEach((radio) => radio.addEventListener("change", updateRenseignerMode));
+$("assignBatchFile").addEventListener("change", previewAssignmentBatchFile);
+$("bulkFileInput").addEventListener("change", previewBulkFile);
+$("bulkStartBtn").addEventListener("click", startBulkMutation);
+$("bulkStopBtn").addEventListener("click", stopBulkMutation);
+$("bulkClearBtn").addEventListener("click", clearBulkMutation);
+$("bulkDownloadBtn").addEventListener("click", (event) => { if (event.currentTarget.classList.contains("disabled")) event.preventDefault(); });
+$("refreshAvailableBtn").addEventListener("click", loadLatestAvailable);
+$("downloadCsv").addEventListener("click", (event) => { if (event.currentTarget.classList.contains("disabled")) event.preventDefault(); });
+$("downloadAvailableExcel").addEventListener("click", (event) => { if (event.currentTarget.classList.contains("disabled")) event.preventDefault(); });
+$("configForm").addEventListener("submit", saveConfiguration);
+$("debugMode").addEventListener("change", updateDebugMode);
+
+checkServer();
+loadConfig();
+loadLatestAvailable();
+previewSpl();
+previewAssignmentSpl();
+updateAssignmentMode();
+updateRenseignerMode();

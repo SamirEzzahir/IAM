@@ -1,0 +1,1183 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Recherche CMD → Adresse</title>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<style>
+:root{--bg:#eef2f7;--card:#fff;--text:#172033;--muted:#667085;--line:#e4e7ec;--blue:#1769e0;--blue2:#0f56bf;--green:#087443;--greenbg:#e9f8ef;--red:#b42318;--redbg:#fef0ef;--amber:#b54708;--amberbg:#fff8eb;--shadow:0 12px 30px rgba(16,24,40,.08);--radius:16px}
+*{box-sizing:border-box}body{margin:0;background:linear-gradient(135deg,#eef4fb,#f8fafc);color:var(--text);font-family:Inter,Segoe UI,Arial,sans-serif}.app{max-width:1250px;margin:28px auto;padding:0 18px}.header{display:flex;justify-content:space-between;align-items:center;gap:16px;margin-bottom:18px}.brand{display:flex;align-items:center;gap:13px}.logo{width:48px;height:48px;border-radius:14px;background:var(--blue);color:#fff;display:grid;place-items:center;font-weight:800;font-size:19px;box-shadow:0 8px 18px rgba(23,105,224,.25)}h1{font-size:24px;margin:0 0 3px}.subtitle{font-size:13px;color:var(--muted)}.pill{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line);background:#fff;padding:8px 11px;border-radius:999px;font-size:12px;color:var(--muted)}.dot{width:8px;height:8px;border-radius:50%;background:#f79009}.dot.ok{background:#12b76a}.card{background:#fff;border:1px solid rgba(228,231,236,.9);border-radius:var(--radius);box-shadow:var(--shadow)}.nav{display:flex;gap:5px;padding:6px;margin-bottom:18px}.nav button{border:0;background:transparent;padding:11px 15px;border-radius:11px;cursor:pointer;color:var(--muted);font-weight:650}.nav button.active{background:#eaf2ff;color:var(--blue)}.panel{padding:22px}.tab{display:none}.tab.active{display:block}.field{display:flex;flex-direction:column;gap:7px}label{font-size:12px;font-weight:700;color:#344054}input{width:100%;border:1px solid var(--line);border-radius:10px;padding:11px 12px;font:inherit;outline:none}.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}.primary,.secondary,.file-btn{border-radius:10px;padding:10px 14px;cursor:pointer;font-weight:750;border:1px solid transparent;font:inherit}.primary{background:var(--blue);color:#fff}.primary:hover{background:var(--blue2)}.secondary{background:#fff;color:var(--text);border-color:var(--line)}.file-btn{background:#f4f8ff;color:var(--blue);border-color:#b8cff8;display:inline-flex;align-items:center}.file-input{display:none}.notice,.warning,.error{padding:12px 14px;border-radius:11px;font-size:12px;line-height:1.55}.notice{background:#f4f8ff;border:1px solid #d5e3fb;color:#365b91}.warning{background:var(--amberbg);border:1px solid #f4d7a1;color:#8a5b13}.error{background:var(--redbg);border:1px solid #f2c5c1;color:var(--red)}.address-card{margin-top:18px;border:1px solid var(--line);border-radius:13px;padding:16px;background:#fff}.address-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:12px}.box{border:1px solid var(--line);background:#f8fafc;border-radius:11px;padding:12px}.box small{display:block;font-size:10px;color:var(--muted);text-transform:uppercase;font-weight:800;margin-bottom:5px}.box strong{font-size:13px}.search-address{margin-top:12px;padding:12px;border-radius:11px;background:var(--greenbg);color:var(--green);border:1px solid #cdebd8}.results{margin-top:18px;overflow:auto;border:1px solid var(--line);border-radius:12px}table{width:100%;border-collapse:collapse;font-size:13px;min-width:1000px}th,td{padding:10px 11px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}th{background:#f8fafc;color:var(--muted);font-size:11px;text-transform:uppercase;position:sticky;top:0}tr:last-child td{border-bottom:0}.result-head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:18px}.result-count{font-weight:800}.empty{text-align:center;padding:32px;color:var(--muted)}.config-row{display:grid;grid-template-columns:1fr auto;gap:12px;align-items:center;padding:16px;border:1px solid var(--line);border-radius:13px}.config-name{font-weight:800}.config-file{font-size:12px;color:var(--muted);margin-top:5px}.loading{position:fixed;inset:0;background:rgba(255,255,255,.68);display:none;align-items:center;justify-content:center;z-index:1000}.loading-box{background:#fff;border:1px solid var(--line);border-radius:14px;padding:18px 22px;box-shadow:var(--shadow);font-weight:750}.toast{position:fixed;right:22px;bottom:22px;background:#172033;color:#fff;padding:12px 15px;border-radius:10px;display:none;z-index:1100}.helper{font-size:12px;color:var(--muted);line-height:1.5}.footer{text-align:center;color:#98a2b3;font-size:11px;margin:22px 0}.badge{display:inline-flex;padding:4px 8px;border-radius:999px;background:var(--greenbg);color:var(--green);font-size:10px;font-weight:800}@media(max-width:800px){.address-grid{grid-template-columns:1fr 1fr}.header{flex-direction:column;align-items:flex-start}.config-row{grid-template-columns:1fr}}
+
+/* MAROC TELECOM UI THEME — PRESENTATION ONLY */
+:root{--mt-red:#D71920;--mt-red-dark:#A80F15;--mt-dark:#343A40;--mt-mid:#6C757D;--mt-light:#F1F3F5;--mt-white:#FFFFFF;--mt-border:#DEE2E6;--mt-ink:#20252A;--shadow:0 6px 22px rgba(25,31,36,.08);--radius:12px;--blue:var(--mt-red);--blue2:var(--mt-red-dark);--bg:#F5F6F8;--card:#fff;--text:var(--mt-ink);--muted:var(--mt-mid);--line:var(--mt-border)}
+html,body{background:#f5f6f8}body{color:var(--mt-ink);font-family:"Segoe UI",Inter,Arial,sans-serif;min-height:100vh}button,input,textarea,select{font-family:inherit}button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible{outline:3px solid rgba(215,25,32,.18);outline-offset:2px}
+.app-shell{min-height:100vh}.sidebar{position:fixed;inset:0 auto 0 0;width:244px;background:linear-gradient(180deg,#30363b,#252b30);color:#fff;z-index:100;display:flex;flex-direction:column;box-shadow:4px 0 18px rgba(0,0,0,.08)}.sidebar-brand{height:88px;padding:0 20px;display:flex;align-items:center;gap:12px;border-bottom:1px solid rgba(255,255,255,.1)}.brand-placeholder{width:43px;height:43px;border-radius:9px;background:var(--mt-red);display:grid;place-items:center;color:#fff;font-weight:900;box-shadow:0 5px 12px rgba(215,25,32,.28);flex:0 0 auto}.brand-copy{display:flex;flex-direction:column}.brand-copy strong{font-size:15px;letter-spacing:.3px;white-space:nowrap}.brand-copy span{font-size:10px;color:#adb5bd;margin-top:3px;text-transform:uppercase;letter-spacing:.9px}.sidebar-label{padding:24px 20px 9px;color:#899198;font-size:10px;text-transform:uppercase;letter-spacing:1.2px;font-weight:800}
+.nav{display:flex;flex-direction:column;gap:3px;padding:0 10px;margin:0;background:transparent;border:0;box-shadow:none}.nav button{width:100%;display:flex;align-items:center;gap:12px;text-align:left;border:0;background:transparent;color:#e9ecef;padding:12px 13px;border-radius:8px;cursor:pointer;font-weight:600;font-size:13px;transition:.18s}.nav button:hover{background:rgba(255,255,255,.07);color:#fff;transform:translateX(2px)}.nav button.active{background:var(--mt-red);color:#fff;box-shadow:0 5px 12px rgba(215,25,32,.22)}.nav-icon{width:22px;text-align:center;font-size:17px}.sidebar-foot{margin-top:auto;padding:18px 20px;border-top:1px solid rgba(255,255,255,.09);font-size:11px;color:#adb5bd;display:flex;align-items:center;gap:8px}.status-dot{width:7px;height:7px;background:#38c172;border-radius:50%;box-shadow:0 0 0 4px rgba(56,193,114,.12)}
+.main-area{margin-left:244px;min-height:100vh}.topbar{height:88px;background:#fff;border-bottom:1px solid #e8eaed;display:flex;align-items:center;justify-content:space-between;padding:0 30px;position:sticky;top:0;z-index:50;box-shadow:0 2px 9px rgba(33,37,41,.035)}.page-heading{display:flex;align-items:center;gap:12px}.title-accent{width:4px;height:30px;background:var(--mt-red);border-radius:3px}.topbar h1{font-size:21px;margin:0;color:#212529}.subtitle{font-size:11px;color:#868e96;margin-top:3px}.pill{border:1px solid #e1e4e8;background:#fff;padding:8px 12px;border-radius:8px;font-size:11px;color:#5f6870;box-shadow:0 2px 5px rgba(0,0,0,.025)}.dot{background:#f0ad4e}.dot.ok{background:#28a745}.app{max-width:1500px;margin:0 auto;padding:26px 30px 34px}
+.card{background:#fff;border:1px solid #e1e4e8;border-radius:12px;box-shadow:var(--shadow)}.panel{padding:24px;position:relative}.panel:before{content:"";position:absolute;left:0;top:22px;width:4px;height:26px;background:var(--mt-red);border-radius:0 4px 4px 0}.field{gap:7px}label{font-size:12px;font-weight:700;color:#3c4349}input,textarea,select{width:100%;border:1px solid #ced4da;border-radius:8px;padding:10px 12px;background:#fff;color:#212529;font:inherit;transition:.18s}textarea{min-height:112px;resize:vertical;line-height:1.5}input:hover,textarea:hover,select:hover{border-color:#adb5bd}input:focus,textarea:focus,select:focus{border-color:var(--mt-red);box-shadow:0 0 0 3px rgba(215,25,32,.1);outline:0}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.actions{gap:9px;margin-top:15px}.primary,.secondary,.file-btn{min-height:39px;border-radius:8px;padding:9px 15px;font-size:12px;font-weight:700;transition:.15s}.primary{background:var(--mt-red);border-color:var(--mt-red);color:#fff;box-shadow:0 3px 8px rgba(215,25,32,.17)}.primary:hover{background:var(--mt-red-dark);border-color:var(--mt-red-dark);transform:translateY(-1px)}.secondary{background:var(--mt-dark);border-color:var(--mt-dark);color:#fff}.secondary:hover{background:#252a2f;border-color:#252a2f;transform:translateY(-1px)}.file-btn{background:#fff5f5;color:var(--mt-red-dark);border-color:#f0b8bb}.file-btn:hover{background:#ffe9ea}.primary:disabled,.secondary:disabled,.file-btn:disabled,button:disabled{background:#e9ecef!important;border-color:#e1e4e8!important;color:#9aa0a6!important;box-shadow:none!important;cursor:not-allowed!important;transform:none!important}
+.notice,.warning,.error{border-radius:8px;padding:12px 14px;font-size:12px;line-height:1.55;border-left-width:4px}.notice{background:#f8f9fa;border-color:#ced4da;border-left-color:var(--mt-dark);color:#495057}.warning{background:#fff8e8;border-color:#f1d49a;border-left-color:#e99b14;color:#7a5412}.error{background:#fff1f1;border-color:#efc5c7;border-left-color:var(--mt-red);color:#9e1a20}.address-card{border:1px solid #e1e4e8;border-radius:10px;padding:18px;background:#fff;box-shadow:0 3px 10px rgba(33,37,41,.04)}.address-grid{gap:10px}.box{border:1px solid #e3e6e9;background:#f8f9fa;border-radius:8px;padding:12px}.box small{color:#7b838a;font-size:9px;letter-spacing:.7px}.box strong{color:#252a2f}.search-address{background:#f3f8f5;color:#17663b;border:1px solid #cfe6d8;border-left:4px solid #198754;border-radius:8px}
+.badge{background:#e9f6ee;color:#16723f;border:1px solid #cde9d7;border-radius:6px;padding:4px 8px}.results{border:1px solid #dee2e6;border-radius:9px;background:#fff;box-shadow:0 2px 8px rgba(33,37,41,.025);max-width:100%;overflow:auto}table{font-size:12px;min-width:1000px}th,td{padding:10px 11px;border-bottom:1px solid #e7e9eb;border-right:1px solid #f0f1f2}th:last-child,td:last-child{border-right:0}thead th,th{background:var(--mt-dark);color:#fff;font-size:10px;letter-spacing:.35px;text-transform:uppercase;font-weight:750;position:sticky;top:0;z-index:3}tbody tr:nth-child(even){background:#fafbfc}tbody tr:hover{background:#fff4f4}.filter-row th{background:#f1f3f5;padding:7px;top:35px;z-index:2}.table-filter,.filter-row input,.filter-row select{font-size:10px;padding:7px 8px;border-radius:6px;background:#fff;color:#343a40;border:1px solid #ced4da}.sortable-th{cursor:pointer}.sortable-th:hover{background:#292e33}.sort-indicator{color:#ffb3b6;margin-left:4px}.row-status{font-weight:700}.row-status.ok{color:#157347}.row-status.error{color:#b02a37}.row-status.saturated{color:#b45f06}.row-status.wait{color:#5c636a}
+.bulk-summary{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:16px 0}.bulk-stat{border:1px solid #e1e4e8;background:#fff;border-radius:9px;padding:12px 14px}.bulk-stat small{font-size:9px;color:#7b838a;font-weight:800}.bulk-stat strong{display:block;font-size:20px;color:#292e33;margin-top:4px}.bulk-progress{height:8px;background:#e9ecef;border-radius:999px;overflow:hidden;margin-top:16px}.bulk-progress>div{height:100%;background:linear-gradient(90deg,var(--mt-red),var(--mt-red-dark));border-radius:inherit;transition:width .25s ease}.config-row{border:1px solid #e1e4e8;border-radius:10px;background:#fff;padding:16px}.config-name{font-size:13px;color:#2b3035}.config-file,.helper{color:#7a8289}.loading{background:rgba(33,37,41,.38);backdrop-filter:blur(2px)}.loading-box{border:0;border-top:4px solid var(--mt-red);border-radius:10px;padding:18px 24px;color:#343a40}.toast{right:24px;bottom:24px;background:#343a40;border-left:4px solid var(--mt-red);border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.18)}.footer{color:#9aa0a6;padding-top:10px}input[type="radio"],input[type="checkbox"]{accent-color:var(--mt-red);width:auto;box-shadow:none}.empty{color:#7b838a}
+@media(max-width:1100px){.sidebar{width:210px}.main-area{margin-left:210px}.brand-copy strong{font-size:13px}.app{padding:22px}.topbar{padding:0 22px}.bulk-summary{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:800px){.sidebar{position:relative;width:100%;height:auto}.sidebar-brand{height:70px}.sidebar-label,.sidebar-foot{display:none}.nav{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));padding:10px}.main-area{margin-left:0}.topbar{height:auto;min-height:76px;padding:14px 16px;gap:12px;align-items:flex-start}.topbar h1{font-size:18px}.pill{max-width:45%}.app{padding:16px}.panel{padding:20px 16px}.grid{grid-template-columns:1fr}.address-grid{grid-template-columns:1fr 1fr}.bulk-summary{grid-template-columns:1fr 1fr}}
+@media(max-width:520px){.nav{grid-template-columns:1fr}.topbar{flex-direction:column}.pill{max-width:100%}.address-grid,.bulk-summary{grid-template-columns:1fr}.actions{display:grid;grid-template-columns:1fr}.actions button,.actions .file-btn{width:100%;justify-content:center}.app{padding:12px}.results{border-radius:7px}}
+
+.pdf-import-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:10px}.pdf-import-row .file-btn{margin:0}.pdf-import-status{display:none;flex:1;min-width:260px;padding:9px 11px;border-radius:8px;background:#f8f9fa;border:1px solid #dee2e6;color:#5f6870;font-size:11px;line-height:1.45}.pdf-import-status.ok{display:block;background:#edf8f1;border-color:#cce8d5;color:#17663b}.pdf-import-status.error{display:block;background:#fff1f1;border-color:#efc5c7;color:#9e1a20}
+
+</style>
+</head>
+<body>
+<div class="loading" id="loading"><div class="loading-box" id="loadingText">Recherche...</div></div>
+<div class="app-shell">
+<aside class="sidebar">
+  <div class="sidebar-brand"><div class="brand-placeholder" aria-label="Emplacement logo Maroc Telecom">MT</div><div class="brand-copy"><strong>MAROC TELECOM</strong><span>Outils réseau Cuivre</span></div></div>
+  <div class="sidebar-label">Navigation</div>
+  <div class="nav">
+    <button class="active" onclick="switchTab('search',this)"><span class="nav-icon">⌕</span><span>Semi-Auto Etude</span></button>
+    <button onclick="switchTab('bulk',this)"><span class="nav-icon">▦</span><span>Bulk Auto Etude</span></button>
+    <button onclick="switchTab('va',this)"><span class="nav-icon">↻</span><span>Ré-Étude VA</span></button>
+    <button onclick="switchTab('vabulk',this)"><span class="nav-icon">⟳</span><span>Bulk Ré-Étude VA</span></button>
+    <button onclick="switchTab('address',this)"><span class="nav-icon">⌖</span><span>Recherche Adresse</span></button>
+    <button onclick="switchTab('config',this)"><span class="nav-icon">⚙</span><span>Configuration</span></button>
+  </div>
+  <div class="sidebar-foot"><span class="status-dot"></span>WimTech Automation</div>
+</aside>
+<main class="main-area">
+<header class="topbar"><div class="page-heading"><span class="title-accent"></span><div><h1>Auto Etude pas à pas </h1><div class="subtitle">WimTech · automatisation et études réseau</div></div></div><div class="pill"><span id="dataDot" class="dot"></span><span id="dataStatus">Base non chargée</span></div></header>
+<div class="app">
+
+<section id="tab-search" class="card panel tab active">
+<div class="notice" style="margin-bottom:16px"><strong>Semi-Auto Étude.</strong> Si le Quartier ou la Voie est inconnu, la recherche Excel reste disponible et vous choisissez manuellement la Constitution à appliquer.</div>
+<div class="field"><label>Numéro CMD</label><input id="cmdInput" type="text" placeholder="Saisir le numéro CMD" onkeydown="if(event.key==='Enter')lancerRechercheCMD()"></div>
+<div class="actions"><button class="primary" onclick="lancerRechercheCMD()">Rechercher</button><button class="secondary" onclick="effacerRecherche()">Effacer</button></div>
+<div id="cmdMessage" style="margin-top:15px"></div>
+<div id="addressResult"></div>
+<div id="excelResults"></div>
+<div id="applyStatus" style="display:none"></div>
+</section>
+
+<section id="tab-bulk" class="card panel tab">
+<div class="notice" style="margin-bottom:16px"><strong>Bulk Auto Etude.</strong> Collez les CMD manuellement ou importez un PDF. Le PDF conserve uniquement les CMD Cuivre dégroupage ADSL et Cuivre IAM ADSL dont l'état est EI, IR ou EE. Les lignes FO sont ignorées.</div>
+<div class="field"><label>Liste des CMD</label><textarea id="bulkCmdInput" placeholder="Un CMD par ligne"></textarea></div>
+<div class="pdf-import-row">
+  <label class="file-btn" for="bulkPdfInput">Importer un PDF - CMD Etude</label>
+  <input id="bulkPdfInput" class="file-input" type="file" accept="application/pdf,.pdf" onchange="importerCmdDepuisPDF(this,'etude','bulkCmdInput','bulkPdfStatus')">
+  <div id="bulkPdfStatus" class="pdf-import-status" role="status"></div>
+</div>
+<div class="actions"><button id="bulkStartBtn" class="primary" type="button" onclick="lancerBulkCMD()">Lancer Bulk</button><button class="secondary" type="button" onclick="effacerBulk()">Effacer</button></div>
+<div id="bulkProgress"></div>
+<div id="bulkResults"></div>
+</section>
+
+<section id="tab-va" class="card panel tab">
+<div class="notice" style="margin-bottom:16px">
+  <strong>Ré-Étude VA.</strong> Recherche le CMD dans Mutation, récupère son adresse, trouve automatiquement une Constitution dans la base Excel, supprime l'ancienne constitution puis cherche dans tous les chemins transport par priorité MSAN → TT → TTR : d'abord PAIRE-Libre, puis PAIRE-En cours decon si aucune paire libre n'existe.
+</div>
+<div class="grid">
+  <div class="field">
+    <label>CMD / NDEM</label>
+    <input id="vaCmdInput" type="text" placeholder="Ex. 140050606" onkeydown="if(event.key==='Enter')lancerReEtudeVA()">
+  </div>
+  <div class="field">
+    <label>Délai entre étapes (secondes)</label>
+    <input id="vaDelayInput" type="number" min="0" step="0.1" value="0" placeholder="0 = aucun délai">
+    <div class="helper">0 = aucun délai. Exemple : 1.5 = 1,5 seconde entre les étapes.</div>
+  </div>
+</div>
+<div class="actions">
+  <button id="vaStartBtn" class="primary" type="button" onclick="lancerReEtudeVA()">Lancer Ré-Étude VA</button>
+  <button id="vaPauseBtn" class="secondary" type="button" onclick="pauseReEtudeVA()" disabled>Pause</button>
+  <button id="vaResumeBtn" class="secondary" type="button" onclick="resumeReEtudeVA()" disabled>Reprendre</button>
+  <button class="secondary" type="button" onclick="effacerReEtudeVA()">Effacer</button>
+</div>
+<div id="vaLiveStatus" class="notice" style="margin-top:14px;display:none"></div>
+<div id="vaResult" style="margin-top:18px"></div>
+</section>
+
+<section id="tab-vabulk" class="card panel tab">
+<div class="notice" style="margin-bottom:16px">
+  <strong>Bulk Ré-Étude VA.</strong> Collez un CMD par ligne. Chaque CMD est traité séquentiellement avec le même workflow que Ré-Étude VA, y compris la détection SR normal / zone radian.
+</div>
+
+<div class="field">
+  <label>Liste CMD VA</label>
+  <textarea id="vaBulkCmdInput" placeholder="Un CMD par ligne"></textarea>
+</div>
+
+<div class="pdf-import-row">
+  <label class="file-btn" for="vaBulkPdfInput">Importer un PDF - CMD VA Cuivre</label>
+  <input id="vaBulkPdfInput" class="file-input" type="file" accept="application/pdf,.pdf" onchange="importerCmdDepuisPDF(this,'va','vaBulkCmdInput','vaBulkPdfStatus')">
+  <div id="vaBulkPdfStatus" class="pdf-import-status" role="status"></div>
+</div>
+
+<div class="grid">
+  <div class="field">
+    <label>Délai entre étapes (secondes)</label>
+    <input id="vaBulkDelayInput" type="number" min="0" step="0.5" value="0">
+    <div class="helper">0 = aucun délai.</div>
+  </div>
+</div>
+
+<div class="actions">
+  <button id="vaBulkStartBtn" class="primary" type="button" onclick="lancerBulkVA()">Lancer Bulk VA</button>
+  <button id="vaBulkPauseBtn" class="secondary" type="button" onclick="pauseBulkVA()" disabled>Pause</button>
+  <button id="vaBulkResumeBtn" class="secondary" type="button" onclick="resumeBulkVA()" disabled>Reprendre</button>
+  <button class="secondary" type="button" onclick="effacerBulkVA()">Effacer</button>
+</div>
+
+<div id="vaBulkLiveStatus" class="notice" style="margin-top:14px;display:none"></div>
+<div id="vaBulkProgress"></div>
+<div id="vaBulkResults" style="margin-top:16px"></div>
+</section>
+
+<section id="tab-address" class="card panel tab">
+<div class="notice" style="margin-bottom:16px"><strong>Recherche Adresse.</strong> Recherche directe dans la base Excel, sans CMD et sans Selenium. Vous pouvez saisir une partie du SR/Répartiteur et/ou une partie de l'adresse.</div>
+<div class="grid">
+  <div class="field">
+    <label>Répartiteur / SR</label>
+    <input id="simpleSrInput" type="text" placeholder="Ex. FBHS" onkeydown="if(event.key==='Enter')rechercherAdresseSimple()">
+  </div>
+  <div class="field">
+    <label>Adresse</label>
+    <input id="simpleAddressInput" type="text" placeholder="Ex. SIDI BRAHIM" onkeydown="if(event.key==='Enter')rechercherAdresseSimple()">
+  </div>
+</div>
+<div class="actions">
+  <button class="primary" type="button" onclick="rechercherAdresseSimple()">Rechercher</button>
+  <button class="secondary" type="button" onclick="effacerRechercheAdresseSimple()">Effacer</button>
+</div>
+<div id="simpleAddressResults" style="margin-top:18px"></div>
+</section>
+
+<section id="tab-config" class="card panel tab">
+<div class="config-row"><div><div class="config-name">Base de données clients / cuivre (Excel)</div><div class="config-file" id="fileName">Aucun fichier configuré</div><div class="helper" style="margin-top:7px">Colonnes attendues : SR, ND, ETAT, NOM, Adresse, NE, Constitutions, SRO.</div></div><div><label class="file-btn">Choisir Excel<input class="file-input" id="excelInput" type="file" accept=".xlsx,.xls,.csv" onchange="importerExcel(this)"></label></div></div>
+<div class="notice" style="margin-top:14px">Le fichier est conservé localement dans ce navigateur via IndexedDB. La recherche s’effectue dans la colonne <strong>Adresse</strong>.</div>
+<div class="actions"><button class="secondary" onclick="reinitialiserBase()">Supprimer la base locale</button></div>
+</section>
+<footer class="footer">Powred by · <a class="footer" href="mailto:s.ez-zahir@iam.ma">Samir EZ-ZAHIR</a></footer>
+</div>
+</main>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+// Keep API calls relative to this application. The same UI therefore works at
+// `/` in standalone mode and at `/Cuiver/` through the combined gateway.
+const apiUrl = path => new URL(String(path).replace(/^\/+/, ''), document.baseURI).toString();
+
+const DB_NAME="CMD_Address_Search_DB", DB_VERSION=1, STORE="config";
+let rows=[], metadata={name:"",size:0,updated:null};
+const HEADERS=["SR","ND","ETAT","NOM","Adresse","NE","Constitutions","SRO"];
+
+function switchTab(tab,btn){document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));document.querySelectorAll('.nav button').forEach(x=>x.classList.remove('active'));document.getElementById('tab-'+tab).classList.add('active');if(btn)btn.classList.add('active')}
+function showLoading(t){document.getElementById('loadingText').textContent=t||'Chargement...';document.getElementById('loading').style.display='flex'}
+function hideLoading(){document.getElementById('loading').style.display='none'}
+function toast(m){const e=document.getElementById('toast');e.textContent=m;e.style.display='block';clearTimeout(window.__t);window.__t=setTimeout(()=>e.style.display='none',3500)}
+function escapeHtml(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]))}
+
+async function importerCmdDepuisPDF(input,mode,textareaId,statusId){
+    const file=input.files&&input.files[0];
+    if(!file)return;
+
+    const textarea=document.getElementById(textareaId);
+    const status=document.getElementById(statusId);
+    input.disabled=true;
+    status.className='pdf-import-status';
+    status.style.display='block';
+    status.textContent=`Lecture de ${file.name}...`;
+
+    try{
+        const form=new FormData();
+        form.append('pdf',file,file.name);
+        form.append('mode',mode);
+
+        const response=await fetch(apiUrl('/api/extract-cmd-pdf'),{
+            method:'POST',
+            body:form
+        });
+        const data=await response.json().catch(()=>({}));
+        if(!response.ok||!data.ok){
+            throw new Error(data.error||'Extraction PDF impossible.');
+        }
+
+        const commands=Array.isArray(data.commands)?data.commands:[];
+        textarea.value=commands.join('\n');
+
+        const types=data.classifications||{};
+        const degroupage=Number(
+            types.cuivre_degroupage_adsl||types.cuivre_degroupage||0
+        );
+        const iam=Number(types.cuivre_iam_adsl||0);
+        status.className='pdf-import-status ok';
+        status.textContent=
+            `${file.name} : ${commands.length} CMD extrait(s) - `+
+            `${degroupage} dégroupage, ${iam} IAM ADSL. `+
+            `Vérifiez la liste puis lancez le Bulk.`;
+        toast(`${commands.length} CMD extrait(s) du PDF.`);
+    }catch(error){
+        status.className='pdf-import-status error';
+        status.textContent=error.message||'Erreur pendant l’extraction PDF.';
+        toast(status.textContent);
+    }finally{
+        input.disabled=false;
+        input.value='';
+    }
+}
+function norm(v){return String(v??'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase().replace(/[\s\u00A0\-_./,;:]+/g,'').trim()}
+function detectHeader(headers,wanted){const n=norm(wanted);return headers.find(h=>norm(h)===n)}
+function openDB(){return new Promise((res,rej)=>{const r=indexedDB.open(DB_NAME,DB_VERSION);r.onupgradeneeded=e=>{const db=e.target.result;if(!db.objectStoreNames.contains(STORE))db.createObjectStore(STORE)};r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)})}
+async function dbSet(k,v){const db=await openDB();return new Promise((res,rej)=>{const tx=db.transaction(STORE,'readwrite');tx.objectStore(STORE).put(v,k);tx.oncomplete=()=>{db.close();res()};tx.onerror=()=>{db.close();rej(tx.error)}})}
+async function dbGet(k){const db=await openDB();return new Promise((res,rej)=>{const tx=db.transaction(STORE,'readonly'),r=tx.objectStore(STORE).get(k);r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error);tx.oncomplete=()=>db.close()})}
+async function dbClear(){const db=await openDB();return new Promise((res,rej)=>{const tx=db.transaction(STORE,'readwrite');tx.objectStore(STORE).clear();tx.oncomplete=()=>{db.close();res()};tx.onerror=()=>{db.close();rej(tx.error)}})}
+function updateStatus(){const dot=document.getElementById('dataDot'),status=document.getElementById('dataStatus'),fn=document.getElementById('fileName');if(rows.length){dot.className='dot ok';status.textContent=`${rows.length} lignes chargées`;fn.textContent=`${metadata.name} · ${rows.length} lignes`}else{dot.className='dot';status.textContent='Base non chargée';fn.textContent='Aucun fichier configuré'}}
+
+async function importerExcel(input){const file=input.files&&input.files[0];if(!file)return;try{showLoading('Import Excel...');if(!window.XLSX)throw Error('Module Excel indisponible.');const buffer=await file.arrayBuffer();const wb=XLSX.read(buffer,{type:'array',cellDates:false});if(!wb.SheetNames.length)throw Error('Aucune feuille Excel.');const raw=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{defval:'',raw:false});if(!raw.length)throw Error('Fichier Excel vide.');const headers=Object.keys(raw[0]),H={};HEADERS.forEach(h=>H[h]=detectHeader(headers,h));const missing=HEADERS.filter(h=>!H[h]);if(missing.length)throw Error('Colonnes manquantes : '+missing.join(', '));rows=raw.map(r=>({SR:String(r[H.SR]??'').trim(),ND:String(r[H.ND]??'').trim(),ETAT:String(r[H.ETAT]??'').trim(),NOM:String(r[H.NOM]??'').trim(),Adresse:String(r[H.Adresse]??'').trim(),NE:String(r[H.NE]??'').trim(),Constitutions:String(r[H.Constitutions]??'').trim(),SRO:String(r[H.SRO]??'').trim()}));rows.forEach(r=>r._adresse=norm(r.Adresse));metadata={name:file.name,size:file.size,updated:new Date().toISOString()};await dbSet('rows',rows.map(({_adresse,...r})=>r));await dbSet('metadata',metadata);updateStatus();toast(`${rows.length} lignes importées.`)}catch(e){console.error(e);toast(e.message||'Erreur import Excel.')}finally{input.value='';hideLoading()}}
+async function chargerBase(){try{const saved=await dbGet('rows'),m=await dbGet('metadata');if(Array.isArray(saved)){rows=saved;rows.forEach(r=>r._adresse=norm(r.Adresse));metadata=m||metadata}}catch(e){console.error(e)}updateStatus()}
+async function reinitialiserBase(){if(!confirm('Supprimer la base Excel enregistrée dans ce navigateur ?'))return;await dbClear();rows=[];metadata={name:'',size:0,updated:null};updateStatus();effacerRecherche();toast('Base locale supprimée.')}
+
+function contientInconnue(v){return norm(v).includes('INCONNU')}
+function construireTentativesAdresse(data){
+    const p=String(data.province||'').trim(), c=String(data.commune||'').trim(), q=String(data.quartier||'').trim(), v=String(data.voie||'').trim();
+    const tries=[];
+    // 1) Province + Commune + Quartier + Voie (only if both are usable)
+    if(q && !contientInconnue(q) && v && !contientInconnue(v)) tries.push({level:4,address:[p,c,q,v].filter(Boolean).join(' ')});
+    // 2) Province + Commune + Quartier
+    if(q && !contientInconnue(q)) tries.push({level:3,address:[p,c,q].filter(Boolean).join(' ')});
+    // 3) Province + Commune
+    tries.push({level:2,address:[p,c].filter(Boolean).join(' ')});
+    // Remove duplicates while preserving order
+    const seen=new Set(); return tries.filter(x=>{const k=norm(x.address);if(!k||seen.has(k))return false;seen.add(k);return true});
+}
+function rechercherAdresse(adresse){const q=norm(adresse);if(!q)return[];return rows.filter(r=>r._adresse.includes(q))}
+function rechercherAdresseAvecFallback(data){
+    const tries=construireTentativesAdresse(data), attempts=[];
+    for(const t of tries){
+        const found=rechercherAdresse(t.address);attempts.push({...t,count:found.length});
+        if(found.length)return {found,address:t.address,level:t.level,attempts};
+    }
+    return {found:[],address:tries.length?tries[tries.length-1].address:'',level:0,attempts};
+}
+function renderAddress(data,searchInfo){
+    const attempts=(searchInfo?.attempts||[]).map((x,i)=>`${i+1}. ${escapeHtml(x.address)} → ${x.count} résultat(s)`).join('<br>');
+    document.getElementById('addressResult').innerHTML=`<div class="address-card"><strong>Adresse extraite de WimTech</strong><div class="address-grid"><div class="box"><small>Province</small><strong>${escapeHtml(data.province||'—')}</strong></div><div class="box"><small>Commune</small><strong>${escapeHtml(data.commune||'—')}</strong></div><div class="box"><small>Quartier</small><strong>${escapeHtml(data.quartier||'—')}</strong></div><div class="box"><small>Voie</small><strong>${escapeHtml(data.voie||'—')}</strong></div></div><div class="search-address"><strong>Adresse retenue :</strong><br>${escapeHtml(searchInfo?.address||'—')}<div class="helper" style="color:inherit;margin-top:7px"><strong>Tentatives :</strong><br>${attempts||'—'}</div></div></div>`
+}
+let currentSessionId=null;
+let manualSortField=null;
+let manualSortDir=1;
+let manualFilters={SR:'',Adresse:'',Constitutions:''};
+
+function setManualRowStatus(index,text,state='wait'){
+    const el=document.getElementById(`manualRowStatus-${index}`);
+    if(!el)return;
+    el.className=`row-status ${state}`;
+    el.textContent=text;
+}
+function setManualFilter(field,value){manualFilters[field]=String(value||'');renderManualRowsView();}
+function sortManualRows(field){if(manualSortField===field){manualSortDir*=-1}else{manualSortField=field;manualSortDir=1}renderManualRowsView();}
+function getManualRowsFilteredSorted(){
+    let indexed=(window.__lastFoundRows||[]).map((row,originalIndex)=>({row,originalIndex}));
+    indexed=indexed.filter(({row})=>Object.entries(manualFilters).every(([field,q])=>!q||norm(row[field]||'').includes(norm(q))));
+    if(manualSortField){indexed.sort((a,b)=>String(a.row[manualSortField]??'').localeCompare(String(b.row[manualSortField]??''),'fr',{numeric:true,sensitivity:'base'})*manualSortDir)}
+    return indexed;
+}
+function sortIndicator(field){return manualSortField===field?`<span class="sort-indicator">${manualSortDir===1?'▲':'▼'}</span>`:'';}
+function renderManualRowsView(){
+    const box=document.getElementById('excelResults'),base=window.__lastFoundRows||[];
+    if(!base.length){box.innerHTML=`<div class="result-head"><div class="result-count">0 résultat</div></div><div class="warning" style="margin-top:10px">Aucune ligne trouvée après les 3 niveaux de recherche.</div>`;return}
+    const view=getManualRowsFilteredSorted();
+    let h=`<div class="result-head"><div class="result-count">${view.length} / ${base.length} résultat${base.length>1?'s':''}</div><span class="badge">Adresse trouvée</span></div><div class="results"><table><thead>
+    <tr><th class="sortable-th" onclick="sortManualRows('SR')">SR ${sortIndicator('SR')}</th><th>ND</th><th>ETAT</th><th>NOM</th><th class="sortable-th" onclick="sortManualRows('Adresse')">Adresse ${sortIndicator('Adresse')}</th><th>NE</th><th class="sortable-th" onclick="sortManualRows('Constitutions')">Constitutions ${sortIndicator('Constitutions')}</th><th>SRO</th><th>Action</th><th>Résultat</th></tr>
+    <tr class="filter-row"><th><input class="table-filter" type="text" placeholder="Filtrer SR..." value="${escapeHtml(manualFilters.SR)}" oninput="setManualFilter('SR',this.value)"></th><th></th><th></th><th></th><th><input class="table-filter" type="text" placeholder="Filtrer Adresse..." value="${escapeHtml(manualFilters.Adresse)}" oninput="setManualFilter('Adresse',this.value)"></th><th></th><th><input class="table-filter" type="text" placeholder="Filtrer Constitution..." value="${escapeHtml(manualFilters.Constitutions)}" oninput="setManualFilter('Constitutions',this.value)"></th><th></th><th></th><th></th></tr></thead><tbody>`;
+    view.forEach(({row:r,originalIndex})=>{h+='<tr>'+HEADERS.map(k=>`<td>${escapeHtml(r[k])}</td>`).join('')+`<td><button class="primary" type="button" onclick="applyEtude(${originalIndex},this)">Apply Étude</button></td><td id="manualRowStatus-${originalIndex}" class="row-status">—</td></tr>`});
+    h+='</tbody></table></div>';box.innerHTML=h;
+}
+function renderRows(found,address){window.__lastFoundRows=found||[];manualFilters={SR:'',Adresse:'',Constitutions:''};manualSortField=null;manualSortDir=1;renderManualRowsView();}
+async function applyEtude(index,button){
+    const r=(window.__lastFoundRows||[])[index]; if(!r)return toast('Ligne introuvable.');
+    if(!currentSessionId)return toast('Session WimTech expirée. Relancez le CMD.');
+    const constitution=String(r.Constitutions||'').trim(); if(!constitution){setManualRowStatus(index,'Constitution vide','error');return toast('Constitution vide pour cette ligne.');}
+    const old=button.textContent;button.disabled=true;button.textContent='Traitement...';setManualRowStatus(index,'Traitement...','wait');showLoading('Apply Étude...');
+    try{
+        const cmd=document.getElementById('cmdInput').value.trim();
+        const resp=await fetch(apiUrl('/api/apply-etude'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({session_id:currentSessionId,constitution,cmd})});
+        const data=await resp.json().catch(()=>({}));
+        if(!resp.ok||!data.ok){setManualRowStatus(index,data.error||'Erreur Apply Étude','error');button.disabled=false;button.textContent=old;return}
+        if(data.status==='TECHNICAL_ERROR_RECOVERED'){
+            const searchInfo=rechercherAdresseAvecFallback(data);
+            renderAddress(data,searchInfo);
+            renderRows(searchInfo.found,searchInfo.address);
+            toast('WimTech récupéré. Choisissez de nouveau une ligne Apply Étude.');
+        }else if(data.status==='PC_SATURE'){
+            setManualRowStatus(index,'PC saturé','saturated');
+            button.textContent='PC saturé';button.disabled=true;toast('PC saturé. Vous pouvez tester une autre ligne.');
+        }else{
+            currentSessionId=null;
+            setManualRowStatus(index,'✓ Étude validée','ok');
+            button.textContent='✓ Finished';button.disabled=true;toast('Étude terminée.');
+        }
+    }catch(e){setManualRowStatus(index,e.message||'Erreur','error');button.disabled=false;button.textContent=old}
+    finally{hideLoading()}
+}
+
+async function lancerRechercheCMD(){
+    const cmd=document.getElementById('cmdInput').value.trim();if(!cmd)return toast('Saisissez un numéro CMD.');if(!rows.length)return toast('Importez d’abord la base Excel dans Configuration.');
+    document.getElementById('cmdMessage').innerHTML='';document.getElementById('addressResult').innerHTML='';document.getElementById('excelResults').innerHTML='';document.getElementById('applyStatus').innerHTML='';showLoading('Recherche CMD dans WimTech...');
+    try{
+        const resp=await fetch(apiUrl('/api/recherche-cmd'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({cmd,allow_unknown_address:true})});const data=await resp.json().catch(()=>({}));
+        if(!resp.ok||!data.ok){const msg=data.error||'Erreur pendant la recherche CMD.';document.getElementById('cmdMessage').innerHTML=`<div class="error"><strong>${escapeHtml(msg)}</strong></div>`;return}
+        currentSessionId=data.session_id;
+        const searchInfo=rechercherAdresseAvecFallback(data);renderAddress(data,searchInfo);renderRows(searchInfo.found,searchInfo.address);
+        if(data.manual_choice || quartierNecessiteVerificationManuelle(data)){
+            document.getElementById('cmdMessage').innerHTML=`<div class="warning"><strong>Adresse à vérifier manuellement.</strong><br>Choisissez la bonne Constitution dans le tableau puis cliquez sur Apply Étude.</div>`;
+        }else{
+            document.getElementById('cmdMessage').innerHTML=`<div class="notice"><strong>CMD ${escapeHtml(cmd)}</strong> traité. Recherche Excel avec fallback automatique terminée.</div>`
+        }
+    }catch(e){document.getElementById('cmdMessage').innerHTML=`<div class="error"><strong>Erreur :</strong> ${escapeHtml(e.message)}</div>`}
+    finally{hideLoading()}
+}
+
+function quartierNecessiteVerificationManuelle(data){
+    const q=norm(data?.quartier||'');
+    const v=norm(data?.voie||'');
+    return q.includes('INCONNU') || v.includes('INCONNU');
+}
+
+
+function vaAddressCandidates(data){
+    const province=String(data.province||'').trim();
+    const commune=String(data.commune||'').trim();
+    const quartier=String(data.quartier||'').trim();
+    const voie=String(data.voie||'').trim();
+
+    if(norm(quartier).includes('INCONNU') || norm(voie).includes('INCONNU')) return {manual:true,candidates:[]};
+
+    const candidates=[];
+    const add=(parts,label)=>{
+        const q=parts.filter(Boolean).join(' ').trim();
+        if(q && !candidates.some(x=>norm(x.query)===norm(q))) candidates.push({query:q,label});
+    };
+
+    if(voie && !norm(voie).includes('INCONNUE')){
+        add([province,commune,quartier,voie],'Province + Commune + Quartier + Voie');
+    }
+    add([province,commune,quartier],'Province + Commune + Quartier');
+    add([province,commune],'Province + Commune');
+    return {manual:false,candidates};
+}
+
+function vaFindExcelConstitution(data){
+    const plan=vaAddressCandidates(data);
+    if(plan.manual)return {manual:true,found:[],query:'',row:null};
+
+    for(const attempt of plan.candidates){
+        const q=norm(attempt.query);
+        const found=rows.filter(r=>norm(r.Adresse||'').includes(q));
+        const usable=found.find(r=>String(r.Constitutions||'').trim());
+        if(usable){
+            return {manual:false,found,query:attempt.query,label:attempt.label,row:usable};
+        }
+    }
+    return {manual:false,found:[],query:'',row:null};
+}
+
+function renderVAStatus(data,excelInfo,resultText,state='wait'){
+    const cls=state==='ok'?'notice':(state==='error'?'warning':'notice');
+    const address=[data?.province,data?.commune,data?.quartier,data?.voie].filter(Boolean).join(' ');
+    const cons=excelInfo?.row?.Constitutions||'—';
+    document.getElementById('vaResult').innerHTML=`
+      <div class="${cls}">
+        <strong>${escapeHtml(resultText)}</strong><br>
+        CMD : ${escapeHtml(data?.cmd||document.getElementById('vaCmdInput').value)}<br>
+        Adresse : ${escapeHtml(address||'—')}<br>
+        Recherche Excel : ${escapeHtml(excelInfo?.query||'—')}<br>
+        Constitution choisie : ${escapeHtml(cons)}
+      </div>`;
+}
+
+let currentVASessionId=null;
+let vaPaused=false;
+
+async function pauseReEtudeVA(){
+    if(!currentVASessionId)return toast('Aucune session VA active.');
+    const r=await fetch(apiUrl('/api/re-etude-va/pause'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({session_id:currentVASessionId})});
+    if(r.ok){vaPaused=true;document.getElementById('vaPauseBtn').disabled=true;document.getElementById('vaResumeBtn').disabled=false;setVALiveStatus('PAUSE — Chrome reste ouvert.');toast('Ré-Étude VA en pause.');}
+}
+async function resumeReEtudeVA(){
+    if(!currentVASessionId)return toast('Aucune session VA active.');
+    const r=await fetch(apiUrl('/api/re-etude-va/resume'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({session_id:currentVASessionId})});
+    if(r.ok){vaPaused=false;document.getElementById('vaPauseBtn').disabled=false;document.getElementById('vaResumeBtn').disabled=true;setVALiveStatus('Reprise de l’automatisation...');toast('Ré-Étude VA reprise.');}
+}
+
+function setVALiveStatus(message){
+    const box=document.getElementById('vaLiveStatus');
+    if(!box)return;
+    box.style.display='block';
+    box.innerHTML=`<strong>Automation VA :</strong> ${escapeHtml(message)}`;
+}
+
+function clearVALiveStatus(){
+    const box=document.getElementById('vaLiveStatus');
+    if(!box)return;
+    box.style.display='none';
+    box.innerHTML='';
+}
+
+async function lancerReEtudeVA(){
+    const cmd=document.getElementById('vaCmdInput').value.trim();
+    if(!cmd)return toast('Saisissez un CMD.');
+    if(!rows.length)return toast('Importez d’abord la base Excel dans Configuration.');
+
+    const delaySeconds=Math.max(
+        0,
+        parseFloat(document.getElementById('vaDelayInput').value)||0
+    );
+
+    const btn=document.getElementById('vaStartBtn');
+    btn.disabled=true;
+    btn.textContent='Traitement VA...';
+
+    // IMPORTANT: no showLoading() here.
+    // The page must stay clickable so Pause/Resume can work.
+    setVALiveStatus(`Recherche CMD en cours — délai ${delaySeconds}s`);
+    let sessionId=null;
+
+    try{
+        const startResp=await fetch(apiUrl('/api/re-etude-va/start'),{
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({
+                cmd,
+                delay_seconds:delaySeconds
+            })
+        });
+        const start=await startResp.json().catch(()=>({}));
+
+        if(!startResp.ok||!start.ok){
+            document.getElementById('vaResult').innerHTML=
+                `<div class="warning"><strong>Erreur :</strong> ${escapeHtml(start.error||'Erreur Ré-Étude VA')}</div>`;
+            return;
+        }
+
+        if(start.status==='MANUAL_REQUIRED'){
+            renderVAStatus(start,null,'Should verify manual','error');
+            return;
+        }
+
+        sessionId=start.session_id;
+        currentVASessionId=sessionId;
+        vaPaused=false;
+
+        document.getElementById('vaPauseBtn').disabled=false;
+        document.getElementById('vaResumeBtn').disabled=true;
+
+        setVALiveStatus('Adresse récupérée — recherche de Constitution dans Excel...');
+        const excelInfo=vaFindExcelConstitution(start);
+
+        if(excelInfo.manual){
+            await closeBulkSession(sessionId);
+            sessionId=null;
+            currentVASessionId=null;
+            renderVAStatus(start,excelInfo,'Should verify manual','error');
+            return;
+        }
+
+        if(!excelInfo.row){
+            await closeBulkSession(sessionId);
+            sessionId=null;
+            currentVASessionId=null;
+            renderVAStatus(start,excelInfo,'Aucune Constitution trouvée pour cette adresse','error');
+            return;
+        }
+
+        renderVAStatus(
+            start,
+            excelInfo,
+            `Adresse et Constitution trouvées — automation en cours (délai ${delaySeconds}s)`,
+            'wait'
+        );
+
+        setVALiveStatus(
+            'Suppression ancienne constitution → ajout nouvelle constitution → recherche PAIRE-Libre, puis PAIRE-En cours decon...'
+        );
+
+        const execResp=await fetch(apiUrl('/api/re-etude-va/execute'),{
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({
+                session_id:sessionId,
+                constitution:excelInfo.row.Constitutions,
+                cmd,
+                delay_seconds:delaySeconds
+            })
+        });
+        const result=await execResp.json().catch(()=>({}));
+
+        if(!execResp.ok||!result.ok){
+            renderVAStatus(
+                start,
+                excelInfo,
+                result.error||'Erreur exécution VA',
+                'error'
+            );
+            return;
+        }
+
+        sessionId=null;
+        currentVASessionId=null;
+        vaPaused=false;
+
+        document.getElementById('vaPauseBtn').disabled=true;
+        document.getElementById('vaResumeBtn').disabled=true;
+
+        if(result.status==='NO_FREE_PAIR'){
+            renderVAStatus(
+                start,
+                excelInfo,
+                'Aucune PAIRE-Libre / En cours decon — Should verify manual',
+                'error'
+            );
+            return;
+        }
+
+        document.getElementById('vaResult').innerHTML=`
+          <div class="notice">
+            <strong>✓ Ré-Étude VA terminée</strong><br>
+            CMD : ${escapeHtml(cmd)}<br>
+            Répartiteur : ${escapeHtml(result.repartiteur)}<br>
+            SR : ${escapeHtml(result.sr)}<br>
+            SR/PCO : ${escapeHtml(result.pc_sr)}<br>
+            Paire choisie : ${escapeHtml(result.paire||'—')}<br>
+            Type zone : ${escapeHtml(result.zone_type||"—")}<br>Anciennes constitutions supprimées : ${escapeHtml(result.deleted_count)}
+          </div>`;
+        setVALiveStatus('Terminé.');
+        toast('Ré-Étude VA terminée.');
+
+    }catch(e){
+        document.getElementById('vaResult').innerHTML=
+            `<div class="warning"><strong>Erreur :</strong> ${escapeHtml(e.message||String(e))}</div>`;
+    }finally{
+        // Do NOT call hideLoading(): VA no longer uses the blocking overlay.
+        btn.disabled=false;
+        btn.textContent='Lancer Ré-Étude VA';
+
+        if(!currentVASessionId){
+            document.getElementById('vaPauseBtn').disabled=true;
+            document.getElementById('vaResumeBtn').disabled=true;
+        }
+    }
+}
+
+function effacerReEtudeVA(){
+    document.getElementById('vaCmdInput').value='';
+    document.getElementById('vaResult').innerHTML='';
+    document.getElementById('vaDelayInput').value='0';clearVALiveStatus();
+}
+
+
+
+let vaBulkRunning=false;
+let vaBulkPaused=false;
+let vaBulkCurrentSessionId=null;
+
+function parseBulkVACMDs(){
+    const raw=document.getElementById('vaBulkCmdInput').value||'';
+    const seen=new Set(),out=[];
+    raw.split(/[\r\n,;]+/).map(x=>x.trim()).filter(Boolean).forEach(cmd=>{
+        if(!seen.has(cmd)){seen.add(cmd);out.push(cmd);}
+    });
+    return out;
+}
+
+function renderBulkVAShell(cmds){
+    const box=document.getElementById('vaBulkResults');
+    let h=`<div class="bulk-summary">
+      <div class="bulk-stat"><small>TOTAL CMD</small><strong id="vaBulkTotal">${cmds.length}</strong></div>
+      <div class="bulk-stat"><small>VALIDÉS</small><strong id="vaBulkOk">0</strong></div>
+      <div class="bulk-stat"><small>MANUEL / SANS PAIRE</small><strong id="vaBulkManual">0</strong></div>
+      <div class="bulk-stat"><small>ERREURS</small><strong id="vaBulkErr">0</strong></div>
+    </div>
+    <div class="results"><table>
+    <thead><tr>
+      <th>CMD</th>
+      <th>Adresse retenue</th>
+      <th>Constitution source</th>
+      <th>Type zone</th>
+      <th>SR/PCO utilisé</th>
+      <th>Paire</th>
+      <th>Résultat</th>
+    </tr></thead><tbody>`;
+
+    cmds.forEach((cmd,i)=>{
+        h+=`<tr>
+          <td><strong>${escapeHtml(cmd)}</strong></td>
+          <td id="vaBulkAddress-${i}">—</td>
+          <td id="vaBulkConst-${i}">—</td>
+          <td id="vaBulkZone-${i}">—</td>
+          <td id="vaBulkSrPco-${i}">—</td>
+          <td id="vaBulkPair-${i}">—</td>
+          <td id="vaBulkStatus-${i}" class="row-status wait">En attente</td>
+        </tr>`;
+    });
+
+    h+='</tbody></table></div>';
+    box.innerHTML=h;
+
+    document.getElementById('vaBulkProgress').innerHTML=
+      `<div class="bulk-progress"><div id="vaBulkProgressBar"></div></div>
+       <div id="vaBulkProgressText" class="helper">0 / ${cmds.length}</div>`;
+}
+
+function setVABulkCell(i,prefix,text){
+    const el=document.getElementById(`${prefix}-${i}`);
+    if(el)el.textContent=text||'—';
+}
+
+function setVABulkStatus(i,text,state='wait'){
+    const el=document.getElementById(`vaBulkStatus-${i}`);
+    if(!el)return;
+    el.textContent=text;
+    el.className=`row-status ${state}`;
+}
+
+function setVABulkLive(message){
+    const box=document.getElementById('vaBulkLiveStatus');
+    if(!box)return;
+    box.style.display='block';
+    box.innerHTML=`<strong>Bulk VA :</strong> ${escapeHtml(message)}`;
+}
+
+function updateVABulkSummary(done,total,ok,manual,err){
+    const bar=document.getElementById('vaBulkProgressBar');
+    if(bar)bar.style.width=`${total?Math.round(done*100/total):0}%`;
+
+    const text=document.getElementById('vaBulkProgressText');
+    if(text)text.textContent=`${done} / ${total}`;
+
+    const okEl=document.getElementById('vaBulkOk');
+    const manEl=document.getElementById('vaBulkManual');
+    const errEl=document.getElementById('vaBulkErr');
+    if(okEl)okEl.textContent=ok;
+    if(manEl)manEl.textContent=manual;
+    if(errEl)errEl.textContent=err;
+}
+
+async function waitIfBulkVAPaused(){
+    while(vaBulkPaused){
+        await new Promise(r=>setTimeout(r,150));
+    }
+}
+
+async function pauseBulkVA(){
+    vaBulkPaused=true;
+    document.getElementById('vaBulkPauseBtn').disabled=true;
+    document.getElementById('vaBulkResumeBtn').disabled=false;
+    setVABulkLive('PAUSE demandée.');
+
+    if(vaBulkCurrentSessionId){
+        try{
+            await fetch(apiUrl('/api/re-etude-va/pause'),{
+                method:'POST',
+                headers:{'Content-Type':'application/json'},
+                body:JSON.stringify({session_id:vaBulkCurrentSessionId})
+            });
+        }catch(e){}
+    }
+}
+
+async function resumeBulkVA(){
+    vaBulkPaused=false;
+    document.getElementById('vaBulkPauseBtn').disabled=false;
+    document.getElementById('vaBulkResumeBtn').disabled=true;
+    setVABulkLive('Reprise du Bulk VA...');
+
+    if(vaBulkCurrentSessionId){
+        try{
+            await fetch(apiUrl('/api/re-etude-va/resume'),{
+                method:'POST',
+                headers:{'Content-Type':'application/json'},
+                body:JSON.stringify({session_id:vaBulkCurrentSessionId})
+            });
+        }catch(e){}
+    }
+}
+
+async function lancerBulkVA(){
+    const cmds=parseBulkVACMDs();
+    if(!cmds.length)return toast('Ajoutez au moins un CMD VA.');
+    if(!rows.length)return toast('Importez d’abord la base Excel dans Configuration.');
+    if(vaBulkRunning)return;
+
+    const delaySeconds=Math.max(
+        0,
+        parseFloat(document.getElementById('vaBulkDelayInput').value)||0
+    );
+
+    const btn=document.getElementById('vaBulkStartBtn');
+    btn.disabled=true;
+    btn.textContent='Bulk VA en cours...';
+    document.getElementById('vaBulkPauseBtn').disabled=false;
+    document.getElementById('vaBulkResumeBtn').disabled=true;
+
+    vaBulkRunning=true;
+    vaBulkPaused=false;
+    vaBulkCurrentSessionId=null;
+
+    renderBulkVAShell(cmds);
+
+    let ok=0,manual=0,err=0,done=0;
+
+    try{
+        for(let i=0;i<cmds.length;i++){
+            await waitIfBulkVAPaused();
+
+            const cmd=cmds[i];
+            let sessionId=null;
+
+            setVABulkStatus(i,'Recherche CMD...','wait');
+            setVABulkLive(`CMD ${i+1}/${cmds.length} : ${cmd}`);
+
+            try{
+                const startResp=await fetch(apiUrl('/api/re-etude-va/start'),{
+                    method:'POST',
+                    headers:{'Content-Type':'application/json'},
+                    body:JSON.stringify({
+                        cmd,
+                        delay_seconds:delaySeconds
+                    })
+                });
+
+                const start=await startResp.json().catch(()=>({}));
+
+                if(!startResp.ok||!start.ok){
+                    setVABulkStatus(i,start.error||'Erreur recherche CMD','error');
+                    err++;
+                    done++;
+                    updateVABulkSummary(done,cmds.length,ok,manual,err);
+                    continue;
+                }
+
+                const address=[start.province,start.commune,start.quartier,start.voie]
+                    .filter(Boolean).join(' ');
+                setVABulkCell(i,'vaBulkAddress',address);
+
+                if(start.status==='MANUAL_REQUIRED'){
+                    setVABulkStatus(i,'Should verify manual','error');
+                    manual++;
+                    done++;
+                    updateVABulkSummary(done,cmds.length,ok,manual,err);
+                    continue;
+                }
+
+                sessionId=start.session_id;
+                vaBulkCurrentSessionId=sessionId;
+
+                const excelInfo=vaFindExcelConstitution(start);
+
+                if(excelInfo.manual){
+                    await closeBulkSession(sessionId);
+                    sessionId=null;
+                    vaBulkCurrentSessionId=null;
+                    setVABulkStatus(i,'Should verify manual','error');
+                    manual++;
+                    done++;
+                    updateVABulkSummary(done,cmds.length,ok,manual,err);
+                    continue;
+                }
+
+                if(!excelInfo.row){
+                    await closeBulkSession(sessionId);
+                    sessionId=null;
+                    vaBulkCurrentSessionId=null;
+                    setVABulkStatus(i,'Aucune Constitution trouvée','error');
+                    manual++;
+                    done++;
+                    updateVABulkSummary(done,cmds.length,ok,manual,err);
+                    continue;
+                }
+
+                const constitution=String(excelInfo.row.Constitutions||'').trim();
+                setVABulkCell(i,'vaBulkConst',constitution);
+                setVABulkStatus(i,'Ré-Étude VA en cours...','wait');
+
+                await waitIfBulkVAPaused();
+
+                const execResp=await fetch(apiUrl('/api/re-etude-va/execute'),{
+                    method:'POST',
+                    headers:{'Content-Type':'application/json'},
+                    body:JSON.stringify({
+                        session_id:sessionId,
+                        constitution,
+                        cmd,
+                        delay_seconds:delaySeconds
+                    })
+                });
+
+                const result=await execResp.json().catch(()=>({}));
+
+                if(!execResp.ok||!result.ok){
+                    setVABulkStatus(i,result.error||'Erreur exécution VA','error');
+                    err++;
+                    if(sessionId)await closeBulkSession(sessionId);
+                    sessionId=null;
+                    vaBulkCurrentSessionId=null;
+                    done++;
+                    updateVABulkSummary(done,cmds.length,ok,manual,err);
+                    continue;
+                }
+
+                sessionId=null;
+                vaBulkCurrentSessionId=null;
+
+                setVABulkCell(i,'vaBulkZone',result.zone_type||'—');
+                setVABulkCell(i,'vaBulkSrPco',result.pc_sr||'—');
+                setVABulkCell(i,'vaBulkPair',result.paire||'—');
+
+                if(result.status==='NO_FREE_PAIR'){
+                    setVABulkStatus(i,'Aucune PAIRE-Libre / En cours decon — Should verify manual','error');
+                    manual++;
+                }else{
+                    setVABulkStatus(i,'✓ Ré-Étude VA terminée','ok');
+                    ok++;
+                }
+
+            }catch(e){
+                if(sessionId)await closeBulkSession(sessionId);
+                sessionId=null;
+                vaBulkCurrentSessionId=null;
+                setVABulkStatus(i,e.message||'Erreur','error');
+                err++;
+            }
+
+            done++;
+            updateVABulkSummary(done,cmds.length,ok,manual,err);
+        }
+
+        setVABulkLive(
+            `Terminé : ${ok} validé(s), ${manual} manuel/sans paire, ${err} erreur(s).`
+        );
+        toast('Bulk Ré-Étude VA terminé.');
+
+    }finally{
+        vaBulkRunning=false;
+        vaBulkPaused=false;
+        vaBulkCurrentSessionId=null;
+
+        btn.disabled=false;
+        btn.textContent='Lancer Bulk VA';
+
+        document.getElementById('vaBulkPauseBtn').disabled=true;
+        document.getElementById('vaBulkResumeBtn').disabled=true;
+    }
+}
+
+function effacerBulkVA(){
+    if(vaBulkRunning)return toast('Le Bulk VA est encore en cours.');
+    document.getElementById('vaBulkCmdInput').value='';
+    document.getElementById('vaBulkPdfStatus').style.display='none';
+    document.getElementById('vaBulkPdfStatus').textContent='';
+    document.getElementById('vaBulkDelayInput').value='0';
+    document.getElementById('vaBulkLiveStatus').style.display='none';
+    document.getElementById('vaBulkLiveStatus').innerHTML='';
+    document.getElementById('vaBulkProgress').innerHTML='';
+    document.getElementById('vaBulkResults').innerHTML='';
+}
+
+let simpleAddressRows=[];
+let simpleSortField=null;
+let simpleSortDir=1;
+let simpleFilters={SR:'',Adresse:'',Constitutions:''};
+const SIMPLE_ADDRESS_PAGE_SIZE=25;
+let simpleCurrentPage=1;
+
+function getSimpleAddressView(){
+    let list=simpleAddressRows.map((row,originalIndex)=>({row,originalIndex}));
+    list=list.filter(({row})=>{
+        return Object.entries(simpleFilters).every(([field,q])=>{
+            if(!q)return true;
+            return norm(row[field]||'').includes(norm(q));
+        });
+    });
+    if(simpleSortField){
+        list.sort((a,b)=>{
+            const av=String(a.row[simpleSortField]??'');
+            const bv=String(b.row[simpleSortField]??'');
+            return av.localeCompare(bv,'fr',{numeric:true,sensitivity:'base'})*simpleSortDir;
+        });
+    }
+    return list;
+}
+
+function simpleSortIndicator(field){
+    if(simpleSortField!==field)return '';
+    return `<span class="sort-indicator">${simpleSortDir===1?'▲':'▼'}</span>`;
+}
+
+function sortSimpleAddress(field){
+    if(simpleSortField===field)simpleSortDir*=-1;
+    else{simpleSortField=field;simpleSortDir=1;}
+    simpleCurrentPage=1;
+    renderSimpleAddressResults();
+}
+
+function setSimpleFilter(field,value){
+    simpleFilters[field]=String(value||'');
+    simpleCurrentPage=1;
+    renderSimpleAddressResults();
+}
+
+function setSimpleAddressPage(page){
+    const totalPages=Math.max(1,Math.ceil(getSimpleAddressView().length/SIMPLE_ADDRESS_PAGE_SIZE));
+    simpleCurrentPage=Math.min(Math.max(1,page),totalPages);
+    renderSimpleAddressResults();
+}
+
+function renderSimpleAddressResults(){
+    const box=document.getElementById('simpleAddressResults');
+    const view=getSimpleAddressView();
+    const simpleAddressTotal=view.length;
+    const simpleAddressTotalPages=Math.max(1,Math.ceil(simpleAddressTotal/SIMPLE_ADDRESS_PAGE_SIZE));
+    simpleCurrentPage=Math.min(Math.max(1,simpleCurrentPage),simpleAddressTotalPages);
+    const simpleAddressFirstIndex=(simpleCurrentPage-1)*SIMPLE_ADDRESS_PAGE_SIZE;
+    const simpleAddressLastIndex=Math.min(
+        simpleAddressFirstIndex+SIMPLE_ADDRESS_PAGE_SIZE,
+        simpleAddressTotal,
+    );
+    if(simpleAddressTotal){
+        view.splice(
+            0,
+            view.length,
+            ...view.slice(simpleAddressFirstIndex,simpleAddressLastIndex),
+        );
+    }
+    if(!simpleAddressRows.length){
+        box.innerHTML='<div class="empty">Aucun résultat.</div>';
+        return;
+    }
+
+    let h=`<div class="result-head"><div class="result-count">${view.length} / ${simpleAddressRows.length} résultat${simpleAddressRows.length>1?'s':''}</div><span class="badge">Recherche locale Excel</span></div>
+    <div class="results"><table><thead>
+    <tr>
+      <th class="sortable-th" onclick="sortSimpleAddress('SR')">SR ${simpleSortIndicator('SR')}</th>
+      <th>ND</th><th>ETAT</th><th>NOM</th>
+      <th class="sortable-th" onclick="sortSimpleAddress('Adresse')">Adresse ${simpleSortIndicator('Adresse')}</th>
+      <th>NE</th>
+      <th class="sortable-th" onclick="sortSimpleAddress('Constitutions')">Constitutions ${simpleSortIndicator('Constitutions')}</th>
+      <th>SRO</th>
+    </tr>
+    <tr class="filter-row">
+      <th><input class="table-filter" type="text" placeholder="Filtrer SR..." value="${escapeHtml(simpleFilters.SR)}" oninput="setSimpleFilter('SR',this.value)"></th>
+      <th></th><th></th><th></th>
+      <th><input class="table-filter" type="text" placeholder="Filtrer Adresse..." value="${escapeHtml(simpleFilters.Adresse)}" oninput="setSimpleFilter('Adresse',this.value)"></th>
+      <th></th>
+      <th><input class="table-filter" type="text" placeholder="Filtrer Constitution..." value="${escapeHtml(simpleFilters.Constitutions)}" oninput="setSimpleFilter('Constitutions',this.value)"></th>
+      <th></th>
+    </tr>
+    </thead><tbody>`;
+
+    view.forEach(({row:r})=>{
+        h+='<tr>'+HEADERS.map(k=>`<td>${escapeHtml(r[k])}</td>`).join('')+'</tr>';
+    });
+
+    h+=`</tbody></table></div>
+    <div class="actions" style="justify-content:space-between;align-items:center">
+      <span class="helper">Page ${simpleCurrentPage} / ${simpleAddressTotalPages} (${simpleAddressTotal} results)</span>
+      <div class="actions" style="margin-top:0">
+        <button class="secondary" type="button" onclick="setSimpleAddressPage(${simpleCurrentPage-1})" ${simpleCurrentPage===1?'disabled':''}>Précédent</button>
+        <button class="secondary" type="button" onclick="setSimpleAddressPage(${simpleCurrentPage+1})" ${simpleCurrentPage===simpleAddressTotalPages?'disabled':''}>Suivant</button>
+      </div>
+    </div>`;
+    box.innerHTML=h;
+}
+
+function rechercherAdresseSimple(){
+    if(!rows.length)return toast('Importez d’abord la base Excel dans Configuration.');
+
+    const sr=norm(document.getElementById('simpleSrInput').value);
+    const adresse=norm(document.getElementById('simpleAddressInput').value);
+
+    if(!sr && !adresse)return toast('Saisissez une partie du SR et/ou de l’adresse.');
+
+    simpleAddressRows=rows.filter(r=>{
+        const srOk=!sr || norm(r.SR||'').includes(sr);
+        const addressOk=!adresse || norm(r.Adresse||'').includes(adresse);
+        return srOk && addressOk;
+    });
+
+    simpleFilters={SR:'',Adresse:'',Constitutions:''};
+    simpleSortField=null;
+    simpleSortDir=1;
+    simpleCurrentPage=1;
+    renderSimpleAddressResults();
+}
+
+function effacerRechercheAdresseSimple(){
+    document.getElementById('simpleSrInput').value='';
+    document.getElementById('simpleAddressInput').value='';
+    simpleAddressRows=[];
+    simpleFilters={SR:'',Adresse:'',Constitutions:''};
+    simpleSortField=null;
+    simpleSortDir=1;
+    simpleCurrentPage=1;
+    document.getElementById('simpleAddressResults').innerHTML='';
+}
+
+function parseBulkCMDs(){
+    const raw=document.getElementById('bulkCmdInput').value||'';
+    const seen=new Set(),out=[];
+    raw.split(/[\r\n,;]+/).map(x=>x.trim()).filter(Boolean).forEach(cmd=>{
+        if(!seen.has(cmd)){seen.add(cmd);out.push(cmd)}
+    });
+    return out;
+}
+function renderBulkShell(cmds){
+    const box=document.getElementById('bulkResults');
+    let h=`<div class="bulk-summary">
+        <div class="bulk-stat"><small>TOTAL CMD</small><strong id="bulkTotal">${cmds.length}</strong></div>
+        <div class="bulk-stat"><small>VALIDÉS</small><strong id="bulkOk">0</strong></div>
+        <div class="bulk-stat"><small>SATURÉS / SANS SOLUTION</small><strong id="bulkSat">0</strong></div>
+        <div class="bulk-stat"><small>ERREURS</small><strong id="bulkErr">0</strong></div>
+    </div>
+    <div class="results"><table><thead><tr><th>CMD</th><th>Adresse retenue</th><th>Constitutions testées</th><th>Résultat</th></tr></thead><tbody>`;
+    cmds.forEach((cmd,i)=>{
+        h+=`<tr><td><strong>${escapeHtml(cmd)}</strong></td><td id="bulkAddress-${i}">—</td><td id="bulkTried-${i}">—</td><td id="bulkStatus-${i}" class="row-status wait">En attente</td></tr>`;
+    });
+    h+='</tbody></table></div>';box.innerHTML=h;
+    document.getElementById('bulkProgress').innerHTML='<div class="bulk-progress"><div id="bulkProgressBar"></div></div><div id="bulkProgressText" class="helper">0 / '+cmds.length+'</div>';
+}
+function setBulkCell(i,id,text){const el=document.getElementById(`${id}-${i}`);if(el)el.textContent=text}
+function setBulkStatus(i,text,state='wait'){const el=document.getElementById(`bulkStatus-${i}`);if(el){el.textContent=text;el.className=`row-status ${state}`}}
+function updateBulkSummary(done,total,ok,sat,err){
+    const bar=document.getElementById('bulkProgressBar');if(bar)bar.style.width=`${total?Math.round(done*100/total):0}%`;
+    const txt=document.getElementById('bulkProgressText');if(txt)txt.textContent=`${done} / ${total}`;
+    const a=document.getElementById('bulkOk'),b=document.getElementById('bulkSat'),c=document.getElementById('bulkErr');
+    if(a)a.textContent=ok;if(b)b.textContent=sat;if(c)c.textContent=err;
+}
+async function closeBulkSession(sessionId){
+    if(!sessionId)return;
+    try{await fetch(apiUrl('/api/close-session'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({session_id:sessionId})})}catch(e){}
+}
+async function applyBulkCandidate(sessionId,cmd,row){
+    const constitution=String(row?.Constitutions||'').trim();
+    if(!constitution)return {kind:'SKIP',message:'Constitution vide'};
+    const resp=await fetch(apiUrl('/api/apply-etude'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({session_id:sessionId,constitution,cmd})});
+    const data=await resp.json().catch(()=>({}));
+    if(!resp.ok||!data.ok)return {kind:'ERROR',message:data.error||'Erreur Apply Étude',data};
+    if(data.status==='PC_SATURE')return {kind:'SATURATED',message:'PC saturé',data};
+    if(data.status==='FINISHED')return {kind:'FINISHED',message:'Étude validée',data};
+    if(data.status==='TECHNICAL_ERROR_RECOVERED')return {kind:'RECOVERED',message:'Erreur technique récupérée',data};
+    return {kind:'ERROR',message:data.message||'Résultat inconnu',data};
+}
+async function lancerBulkCMD(){
+    const cmds=parseBulkCMDs();if(!cmds.length)return toast('Ajoutez au moins un CMD.');
+    if(!rows.length)return toast('Importez d’abord la base Excel dans Configuration.');
+    const btn=document.getElementById('bulkStartBtn');btn.disabled=true;btn.textContent='Bulk en cours...';
+    renderBulkShell(cmds);
+    let ok=0,sat=0,err=0,done=0;
+    try{
+        for(let i=0;i<cmds.length;i++){
+            const cmd=cmds[i];let sessionId=null;
+            setBulkStatus(i,'Recherche CMD...','wait');
+            try{
+                const resp=await fetch(apiUrl('/api/recherche-cmd'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({cmd})});
+                const data=await resp.json().catch(()=>({}));
+                if(!resp.ok||!data.ok){
+                    setBulkStatus(i,data.error||'CMD introuvable','error');err++;done++;updateBulkSummary(done,cmds.length,ok,sat,err);continue;
+                }
+                sessionId=data.session_id||null;
+
+                // If Quartier OR Voie is unknown, stop automation for this CMD.
+                if(data.status==='MANUAL_REQUIRED' || quartierNecessiteVerificationManuelle(data)){
+                    const manualAddress=[data.province,data.commune,data.quartier,data.voie].filter(Boolean).join(' ');
+                    setBulkCell(i,'bulkAddress',manualAddress||'—');
+                    setBulkCell(i,'bulkTried','—');
+                    setBulkStatus(i,'Should verify manual','error');
+                    err++;
+                    if(sessionId)await closeBulkSession(sessionId);
+                    sessionId=null;
+                    done++;
+                    updateBulkSummary(done,cmds.length,ok,sat,err);
+                    continue;
+                }
+
+                let searchInfo=rechercherAdresseAvecFallback(data);
+                setBulkCell(i,'bulkAddress',searchInfo.address||'—');
+                if(!searchInfo.found.length){
+                    setBulkStatus(i,'Aucune adresse Excel trouvée','error');err++;await closeBulkSession(sessionId);done++;updateBulkSummary(done,cmds.length,ok,sat,err);continue;
+                }
+
+                let candidates=searchInfo.found.slice(),tried=[],success=false,recoveryCount=0,candidateIndex=0;
+                while(candidateIndex<candidates.length){
+                    const row=candidates[candidateIndex];
+                    const constitution=String(row.Constitutions||'').trim();
+                    if(!constitution){tried.push('(vide)');candidateIndex++;setBulkCell(i,'bulkTried',tried.join(' → '));continue}
+                    tried.push(constitution);setBulkCell(i,'bulkTried',tried.join(' → '));
+                    setBulkStatus(i,`Test ${candidateIndex+1}/${candidates.length}: ${constitution}`,'wait');
+
+                    const result=await applyBulkCandidate(sessionId,cmd,row);
+
+                    if(result.kind==='FINISHED'){
+                        setBulkStatus(i,`✓ Validé: ${constitution}`,'ok');ok++;success=true;sessionId=null;break;
+                    }
+                    if(result.kind==='SATURATED'){
+                        setBulkStatus(i,`PC saturé: ${constitution} → essai suivant`,'saturated');
+                        candidateIndex++;continue;
+                    }
+                    if(result.kind==='RECOVERED'){
+                        recoveryCount++;
+                        if(recoveryCount>2){
+                            setBulkStatus(i,'Erreur technique répétée','error');err++;break;
+                        }
+                        // WimTech is back on the same CMD detail page. Recompute Excel candidates,
+                        // then retry the same candidate once in the recovered Selenium session.
+                        if(quartierNecessiteVerificationManuelle(result.data)){
+                            const manualAddress=[result.data.province,result.data.commune,result.data.quartier].filter(Boolean).join(' ');
+                            setBulkCell(i,'bulkAddress',manualAddress||'—');
+                            setBulkCell(i,'bulkTried',tried.join(' → ')||'—');
+                            setBulkStatus(i,'Should verify manual','error');
+                            err++;
+                            break;
+                        }
+
+                        searchInfo=rechercherAdresseAvecFallback(result.data);
+                        candidates=searchInfo.found.slice();
+                        setBulkCell(i,'bulkAddress',searchInfo.address||'—');
+                        if(!candidates.length){setBulkStatus(i,'Recovery OK mais aucune ligne Excel','error');err++;break}
+                        candidateIndex=Math.min(candidateIndex,candidates.length-1);
+                        setBulkStatus(i,'Erreur WimTech récupérée → nouvelle tentative','wait');
+                        continue;
+                    }
+                    if(result.kind==='SKIP'){candidateIndex++;continue}
+
+                    setBulkStatus(i,result.message||'Erreur Apply Étude','error');err++;break;
+                }
+
+                if(!success && candidateIndex>=candidates.length){
+                    setBulkStatus(i,'Tous les PC testés sont saturés / inutilisables','saturated');sat++;
+                }
+                if(sessionId)await closeBulkSession(sessionId);
+            }catch(e){
+                if(sessionId)await closeBulkSession(sessionId);
+                setBulkStatus(i,e.message||'Erreur','error');err++;
+            }
+            done++;updateBulkSummary(done,cmds.length,ok,sat,err);
+        }
+        toast(`Bulk terminé : ${ok} validé(s), ${sat} saturé(s), ${err} erreur(s).`);
+    }finally{
+        btn.disabled=false;btn.textContent='Lancer Bulk';
+    }
+}
+function effacerBulk(){
+    document.getElementById('bulkCmdInput').value='';
+    document.getElementById('bulkPdfStatus').style.display='none';
+    document.getElementById('bulkPdfStatus').textContent='';
+    document.getElementById('bulkProgress').innerHTML='';
+    document.getElementById('bulkResults').innerHTML='';
+}
+
+function effacerRecherche(){document.getElementById('cmdInput').value='';document.getElementById('cmdMessage').innerHTML='';document.getElementById('addressResult').innerHTML='';document.getElementById('excelResults').innerHTML='';document.getElementById('applyStatus').innerHTML=''}
+chargerBase();
+</script>
+</body>
+</html>
