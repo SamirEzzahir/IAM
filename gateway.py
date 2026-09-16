@@ -21,7 +21,7 @@ from urllib.parse import urlsplit
 ROOT = Path(__file__).resolve().parent
 WELCOME_PAGE = ROOT / "welcome.html"
 GATEWAY_HOST = os.getenv("GATEWAY_HOST", "127.0.0.1")
-GATEWAY_PORT = int(os.getenv("GATEWAY_PORT", "8080"))
+GATEWAY_PORT = int(os.getenv("GATEWAY_PORT", "80"))
 
 
 @dataclass(frozen=True)

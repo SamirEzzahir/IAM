@@ -33,4 +33,11 @@ tr.row-na td{background:#f8fafc}
 .client-results-tools select{border:1px solid var(--line);border-radius:10px;padding:9px 10px;background:#fff;font:inherit;color:var(--text)}
 .client-copy-btn{padding:6px 9px;font-size:11px;font-weight:750}
 .client-pagination{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-top:12px}
-@media(max-width:800px){.client-mode-buttons{grid-template-columns:1fr 1fr}.client-summary{grid-template-columns:1fr 1fr}}
+.address-detail-group{margin-top:14px;padding:15px;border:1px solid var(--line);border-radius:13px;background:#fbfcfe}
+.address-detail-title{margin-bottom:11px;color:#344054;font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.04em}
+.address-detail-grid{display:grid;gap:10px}
+.address-position-grid{grid-template-columns:repeat(5,minmax(0,1fr))}
+.address-notes-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+.address-notes-grid .data-box strong{display:block;white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.45}
+@media(max-width:800px){.client-mode-buttons{grid-template-columns:1fr 1fr}.client-summary{grid-template-columns:1fr 1fr}.address-position-grid{grid-template-columns:1fr 1fr}.address-notes-grid{grid-template-columns:1fr}}
+@media(max-width:480px){.address-position-grid{grid-template-columns:1fr}}

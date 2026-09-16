@@ -333,14 +333,24 @@ function getClientPCOStatus(pco){
 }
 function prioriteClientParVula(row){
     const st=getClientPCOStatus(row.pco);
-    if(!st.found || !st.inside) return 3;
-    if(st.occ && st.occ.state==="PORTS LIBRES") return 1;
-    if(st.occ && st.occ.state==="SATURÉ") return 2;
-    return 3;
+    if(!st.found) return 6;
+    const state=st.occ&&st.occ.state;
+    if(st.inside && state==="PORTS LIBRES") return 1;
+    if(st.inside && state==="SATURÉ") return 2;
+    if(!st.inside && state==="PORTS LIBRES") return 3;
+    if(!st.inside && state==="SATURÉ") return 4;
+    return 5;
+}
+function portsLibresClient(row){
+    const st=getClientPCOStatus(row.pco);
+    const libres=st.found&&st.occ?Number(st.occ.libres):Number.NaN;
+    return Number.isFinite(libres)?libres:-Infinity;
 }
 function comparerClientsParVula(a,b){
     const pa=prioriteClientParVula(a), pb=prioriteClientParVula(b);
     if(pa!==pb) return pa-pb;
+    const libresA=portsLibresClient(a), libresB=portsLibresClient(b);
+    if(libresA!==libresB) return libresB-libresA;
     return String(a.pco||"").localeCompare(String(b.pco||""),"fr",{numeric:true,sensitivity:"base"});
 }
 function clientStatusCounts(rows){
@@ -415,7 +425,7 @@ function renderClientResultsPage(q){
     <div class="client-stat saturated"><small>IN VULA · SATURÉS</small><strong>${counts.saturated}</strong></div>
     <div class="client-stat out"><small>OUT VULA</small><strong>${counts.out}</strong></div>
     </div>
-    <div class="client-priority-note"><strong>Priorité :</strong> IN VULA avec ports libres → IN VULA saturés → OUT VULA. Les résultats restent triés selon cette priorité.</div>`;
+    <div class="client-priority-note"><strong>Priorité :</strong> IN VULA avec ports libres → IN VULA saturés → OUT VULA avec ports libres → OUT VULA saturés. Dans chaque groupe, les ports libres sont classés du plus grand au plus petit.</div>`;
     let h=`<div class="client-results-head"><div class="client-results-title">Résultats de la recherche · ${start+1}–${end} sur ${rows.length}</div><div class="client-results-tools"><label class="helper">Afficher <select onchange="changerTaillePageClient(this.value)"><option value="100" ${pageSize===100?'selected':''}>100</option><option value="250" ${pageSize===250?'selected':''}>250</option><option value="500" ${pageSize===500?'selected':''}>500</option></select> par page</label><button class="secondary" type="button" onclick="exporterResultatsClients()">📊 Exporter Excel</button></div></div>`;
     h+='<div class="results"><table><thead><tr><th>Nom Client</th><th>Adresse Client</th><th>Login</th><th>Série ONT</th><th>ODF</th><th>PCO</th><th>OLT</th><th>PORTS LIBRES</th><th>VULA</th><th></th></tr></thead><tbody>';
     for(let i=0;i<pageRows.length;i++){
@@ -497,7 +507,8 @@ function rechercherClientsAdressePasAPas(address, fallbackAddress=""){
       <div class="client-stat free"><small>IN VULA · PORTS LIBRES</small><strong>${counts.free}</strong></div>
       <div class="client-stat saturated"><small>IN VULA · SATURÉS</small><strong>${counts.saturated}</strong></div>
       <div class="client-stat out"><small>OUT VULA</small><strong>${counts.out}</strong></div>
-    </div>`;
+    </div>
+    <div class="client-priority-note"><strong>Priorité :</strong> IN VULA avec ports libres → IN VULA saturés → OUT VULA avec ports libres → OUT VULA saturés. Dans chaque groupe, les ports libres sont classés du plus grand au plus petit.</div>`;
 
     const maxRows=100;
     const shown=rows.slice(0,maxRows);
@@ -583,6 +594,23 @@ async function rechercherAdressePasAPas(){
             <div class="data-box"><small>Commune</small><strong>${escapeHtml(data.commune||"—")}</strong></div>
             <div class="data-box"><small>Quartier</small><strong>${escapeHtml(data.quartier||"—")}</strong></div>
             <div class="data-box"><small>Voie</small><strong>${escapeHtml(data.voie||"—")}</strong></div>
+          </div>
+          <div class="address-detail-group">
+            <div class="address-detail-title">Localisation précise</div>
+            <div class="address-detail-grid address-position-grid">
+              <div class="data-box"><small>Numéro</small><strong>${escapeHtml(data.numero||"—")}</strong></div>
+              <div class="data-box"><small>Bâtiment</small><strong>${escapeHtml(data.batiment||"—")}</strong></div>
+              <div class="data-box"><small>Escalier</small><strong>${escapeHtml(data.escalier||"—")}</strong></div>
+              <div class="data-box"><small>Étage</small><strong>${escapeHtml(data.etage||"—")}</strong></div>
+              <div class="data-box"><small>Porte</small><strong>${escapeHtml(data.porte||"—")}</strong></div>
+            </div>
+          </div>
+          <div class="address-detail-group">
+            <div class="address-detail-title">Informations complémentaires</div>
+            <div class="address-detail-grid address-notes-grid">
+              <div class="data-box"><small>Complément adresse</small><strong>${escapeHtml(data.complement_adresse||"—")}</strong></div>
+              <div class="data-box"><small>Commentaire</small><strong>${escapeHtml(data.commentaire||"—")}</strong></div>
+            </div>
           </div>`;
 
         // Utiliser automatiquement l'adresse WimTech comme entrée de la recherche Adresse Client.

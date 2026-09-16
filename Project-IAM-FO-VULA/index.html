@@ -5,7 +5,7 @@
 <title>VULA Control Center V5 - Occupation & Priorité</title>
 <script src="static/vendor/jszip.min.js"></script>
 <script src="static/vendor/xlsx.full.min.js"></script>
-<link rel="stylesheet" href="static/css/app.css">
+<link rel="stylesheet" href="static/css/app.css?v=20260916-1">
 </head>
 <body>
 <div class="loading" id="loading"><div class="loading-box" id="loadingText">Chargement...</div></div>
@@ -49,6 +49,6 @@
 <div class="config-row"><div><div class="config-name">Occupation PCO (Excel)</div><div class="config-file" id="occupationFileName">Aucun fichier configuré</div></div><div class="config-actions"><span id="occupationConfigStatus" class="config-status wait">Non configuré</span><label class="file-btn">Choisir Excel<input id="occupationFileInput" class="file-input" type="file" accept=".xlsx,.xls,.csv" onchange="importerFichierOccupation(this)"></label></div></div><div class="config-row"><div><div class="config-name">Base clients (Excel)</div><div class="config-file" id="clientsFileName">Aucun fichier configuré</div></div><div class="config-actions"><span id="clientsConfigStatus" class="config-status wait">Non configuré</span><label class="file-btn">Choisir Excel<input id="clientsFileInput" class="file-input" type="file" accept=".xlsx,.xls,.csv" onchange="importerFichierClients(this)"></label></div></div></div><div class="notice">Les fichiers sont importés et conservés localement dans le navigateur. Ils ne sont pas envoyés à un serveur par cette application.</div><div class="warning" style="margin-top:12px">Si les données du navigateur sont supprimées, si un autre navigateur/profil est utilisé, ou si le navigateur refuse le stockage pour les fichiers locaux, les deux fichiers devront être sélectionnés à nouveau.</div><div class="actions"><button class="danger" onclick="reinitialiserConfiguration()">Réinitialiser la configuration locale</button></div></section>
 <footer class="footer">Developed by ELMASSAOUDI Mohamed</footer>
 </div><div id="toast" class="toast"></div>
-<script src="static/js/app.js"></script>
+<script src="static/js/app.js?v=20260916-1"></script>
 </body>
 </html>

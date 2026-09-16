@@ -107,8 +107,8 @@ atexit.register(shutdown_sessions)
 
 def extract_value(driver, label):
     xpath = (
-        "//div[@id='BDIV_tpins']//tr[td[1][normalize-space()="
-        f"'{label} :']]//td[2]"
+        "//div[@id='BDIV_tpins']//td[normalize-space()="
+        f"'{label} :']/following-sibling::td[1]"
     )
     try:
         return driver.find_element(By.XPATH, xpath).text.strip()
@@ -166,6 +166,13 @@ def etude_pas_a_pas():
         commune = extract_value(driver, "Commune")
         quartier = extract_value(driver, "Quartier")
         voie = extract_value(driver, "Voie")
+        numero = extract_value(driver, "Numéro")
+        batiment = extract_value(driver, "Bat")
+        escalier = extract_value(driver, "Esc")
+        etage = extract_value(driver, "Etage")
+        porte = extract_value(driver, "Porte")
+        complement_adresse = extract_value(driver, "Complément Adresse")
+        commentaire = extract_value(driver, "Commentaire")
 
         if not any((province, commune, quartier, voie)):
             driver.quit()
@@ -184,7 +191,10 @@ def etude_pas_a_pas():
         return jsonify(
             ok=True, session_id=session_id, cmd=cmd,
             province=province, commune=commune, quartier=quartier,
-            voie=voie, address=address
+            voie=voie, address=address, numero=numero,
+            batiment=batiment, escalier=escalier, etage=etage,
+            porte=porte, complement_adresse=complement_adresse,
+            commentaire=commentaire
         )
 
     except TimeoutException:
