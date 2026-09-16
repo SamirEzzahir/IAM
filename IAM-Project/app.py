@@ -793,8 +793,8 @@ def start_commandes_collection():
     if len(commands) > 2000:
         return jsonify(ok=False, error="La liste dépasse 2000 CMD."), 400
     config = load_config()
-    if not all(config.get(key) for key in ("commandes_url", "wiam_username", "wiam_password")):
-        return jsonify(ok=False, error="Configurez l'URL Commandes, le Login et le mot de passe WIAM."), 400
+    if not all(config.get(key) for key in ("wiam_username", "wiam_password")):
+        return jsonify(ok=False, error="Configurez le Login et le mot de passe WIAM."), 400
     with jobs_lock:
         active = next(
             (value for value in jobs.values() if value["status"] in {"QUEUED", "RUNNING", "PAUSED", "STOPPING"}),

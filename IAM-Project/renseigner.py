@@ -28,8 +28,8 @@ def _wiam_login(driver, config: dict, timeout: int) -> None:
 
 def collect_wiam_login(driver, config: dict, command: str) -> str:
     timeout = int(config["timeout_seconds"])
-    if not all(config.get(key) for key in ("wiam_url", "wiam_username", "wiam_password")):
-        raise ValueError("Configurez l’URL, le Login et le mot de passe WIAM.")
+    if not all(config.get(key) for key in ("wiam_username", "wiam_password")):
+        raise ValueError("Configurez le Login et le mot de passe WIAM.")
     navigate(driver, config["wiam_url"])
     _wiam_login(driver, config, timeout)
     # WIAM often opens on Accueil even when the Commandes URL was requested.

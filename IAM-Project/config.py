@@ -11,20 +11,31 @@ BASE_DIR = Path(__file__).resolve().parent
 CONFIG_PATH = BASE_DIR / "data" / "config.json"
 CONFIG_LOCK = Lock()
 
+WIMTECH_URL = (
+    "http://wimtech/Mutation/mutationIndividuelleGPON.jsf?"
+    "a=PFPOTT%5D%5CG&b=Nnuq}o7-./1&load=1"
+)
+WIAM_URL = (
+    "https://wiam/commande_recherche_critere.jsp?"
+    "mfunc=941&oid=L5%3A35574&ctx=M"
+)
+COMMANDES_URL = "https://10.96.18.189/commandes"
+
+FIXED_URLS = {
+    "wimtech_url": WIMTECH_URL,
+    "wiam_url": WIAM_URL,
+    "commandes_url": COMMANDES_URL,
+}
+
 DEFAULT_CONFIG = {
-    "wimtech_url": (
-        "http://wimtech/Mutation/mutationIndividuelleGPON.jsf?"
-        "a=PFPOTT%5D%5CG&b=Nnuq}o7-./1&load=1"
-    ),
+    **FIXED_URLS,
     "test_login": "I10260472",
     "timeout_seconds": 20,
     "headless": False,
     "debug_mode": False,
     "action_delay_seconds": 0,
-    "wiam_url": "",
     "wiam_username": "",
     "wiam_password": "",
-    "commandes_url": "https://10.96.18.189/commandes",
 }
 
 
@@ -40,16 +51,16 @@ def load_config() -> dict:
     result = dict(DEFAULT_CONFIG)
     if isinstance(saved, dict):
         result.update({key: saved[key] for key in DEFAULT_CONFIG if key in saved})
+    # These internal endpoints are application constants, not user settings.
+    # Always override legacy values that may still exist in config.json.
+    result.update(FIXED_URLS)
     return result
 
 
 def save_config(payload: dict) -> dict:
     current = load_config()
-    url = str(payload.get("wimtech_url", current["wimtech_url"])).strip()
     login = str(payload.get("test_login", current["test_login"])).strip()
 
-    if not url.startswith(("http://", "https://")):
-        raise ValueError("L’URL WimTech doit commencer par http:// ou https://")
     if not login:
         raise ValueError("Le Login de test est obligatoire.")
 
@@ -67,24 +78,16 @@ def save_config(payload: dict) -> dict:
     if action_delay < 0 or action_delay > 60:
         raise ValueError("Le délai Debug Selenium doit être compris entre 0 et 60 secondes.")
 
-    wiam_url = str(payload.get("wiam_url", current["wiam_url"])).strip()
-    if wiam_url and not wiam_url.startswith(("http://", "https://")):
-        raise ValueError("L’URL WIAM doit commencer par http:// ou https://")
     wiam_password = str(payload.get("wiam_password", "")).strip() or current["wiam_password"]
-    commandes_url = str(payload.get("commandes_url", current["commandes_url"])).strip()
-    if not commandes_url.startswith(("http://", "https://")):
-        raise ValueError("L'URL Commandes doit commencer par http:// ou https://")
     result = {
-        "wimtech_url": url,
+        **FIXED_URLS,
         "test_login": login,
         "timeout_seconds": timeout,
         "headless": bool(payload.get("headless", current["headless"])),
         "debug_mode": bool(payload.get("debug_mode", current["debug_mode"])),
         "action_delay_seconds": action_delay,
-        "wiam_url": wiam_url,
         "wiam_username": str(payload.get("wiam_username", current["wiam_username"])).strip(),
         "wiam_password": wiam_password,
-        "commandes_url": commandes_url,
     }
 
     CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)

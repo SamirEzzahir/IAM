@@ -829,16 +829,13 @@ async function loadConfig() {
   try {
     const data = await api("/api/config");
     const config = data.config;
-    $("wimtechUrl").value = config.wimtech_url;
     $("testLogin").value = config.test_login;
     $("timeoutSeconds").value = config.timeout_seconds;
     $("headless").checked = Boolean(config.headless);
     $("debugMode").checked = Boolean(config.debug_mode);
     $("actionDelaySeconds").value = Number(config.action_delay_seconds || 0);
     updateDebugMode();
-    $("wiamUrl").value = config.wiam_url || "";
     $("wiamUsername").value = config.wiam_username || "";
-    $("commandesUrl").value = config.commandes_url || "https://10.96.18.189/commandes";
   } catch (error) {
     toast(error.message);
   }
@@ -857,14 +854,12 @@ async function saveConfiguration(event) {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        wimtech_url: $("wimtechUrl").value.trim(),
         test_login: $("testLogin").value.trim(),
         timeout_seconds: Number($("timeoutSeconds").value),
         headless: $("headless").checked,
         debug_mode: $("debugMode").checked,
         action_delay_seconds: Number($("actionDelaySeconds").value || 0),
-        wiam_url: $("wiamUrl").value.trim(), wiam_username: $("wiamUsername").value.trim(), wiam_password: $("wiamPassword").value,
-        commandes_url: $("commandesUrl").value.trim(),
+        wiam_username: $("wiamUsername").value.trim(), wiam_password: $("wiamPassword").value,
       }),
     });
     toast("Configuration enregistrée.");
