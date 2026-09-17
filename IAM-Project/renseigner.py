@@ -15,6 +15,7 @@ from wimtech_checker import (
     action_delay_from_config, navigate, selenium_action_delay,
 )
 from wimtech_bulk_mutator import ensure_in_progress_circuit_selected, has_command_error
+from wiam_http import WiamHttpClient
 
 
 def _wiam_login(driver, config: dict, timeout: int) -> None:
@@ -134,12 +135,34 @@ def collect_constitution(
 
 
 def run_renseigner(*, config: dict, rows: list[dict], degroupage: dict, stopped: Callable[[], bool], on_result: Callable[[int, dict], None], on_log: Callable[[str, str], None]) -> None:
-    # WIAM may use an internal certificate that is not trusted by Chrome.
-    driver = build_driver(
-        bool(config.get("headless", False)),
-        ignore_certificate_errors=True,
-        action_delay_seconds=action_delay_from_config(config),
-    )
+    execution_mode = str(config.get("execution_mode") or "visible").lower()
+    use_http_wiam = execution_mode == "http"
+    http_available = use_http_wiam
+    driver = None
+    http_client = None
+
+    def browser():
+        nonlocal driver
+        if driver is None:
+            # WIAM may use an internal certificate that is not trusted by Chrome.
+            # HTTP mode still opens visible Chrome for unsupported WimTech pages.
+            driver = build_driver(
+                bool(config.get("headless", False)),
+                ignore_certificate_errors=True,
+                action_delay_seconds=action_delay_from_config(config),
+            )
+        return driver
+
+    def wiam_client():
+        nonlocal http_client
+        if http_client is None:
+            http_client = WiamHttpClient(config)
+        return http_client
+
+    if use_http_wiam:
+        on_log("INFO", "Mode HTTP actif pour les recherches CMD → Login dans WIAM.")
+        if any(row.get("mode") in {"LOGIN", "BOTH"} for row in rows):
+            on_log("INFO", "WimTech reste en Selenium : Chrome visible sera ouvert pour la constitution.")
     try:
         for index, row in enumerate(rows):
             if stopped(): break
@@ -153,12 +176,29 @@ def run_renseigner(*, config: dict, rows: list[dict], degroupage: dict, stopped:
                         result.update(login=mapped.get("login", ""), source="Degroupage Excel")
                         if not result["login"]: raise ValueError(f"Login vide pour {command} dans Degroupage.")
                     else:
-                        result.update(login=collect_wiam_login(driver, config, command), source="WIAM")
+                        if http_available:
+                            try:
+                                result.update(
+                                    login=wiam_client().lookup_login(command),
+                                    source="WIAM HTTP",
+                                )
+                            except Exception as http_error:
+                                http_available = False
+                                on_log(
+                                    "WARNING",
+                                    "WIAM HTTP indisponible ; reprise automatique avec Selenium "
+                                    f"({http_error}).",
+                                )
+                        if not result["login"]:
+                            result.update(
+                                login=collect_wiam_login(browser(), config, command),
+                                source="WIAM" if not use_http_wiam else "WIAM Selenium (repli)",
+                            )
                 if row["mode"] in {"LOGIN", "BOTH"}:
                     login = row["input"] if row["mode"] == "LOGIN" else result["login"]
                     result["login"] = login
                     command = row["input"] if row["mode"] == "BOTH" else None
-                    result.update(collect_constitution(driver, config, login, command))
+                    result.update(collect_constitution(browser(), config, login, command))
                 result.update(status="COMPLETED", status_label="Terminé", message="Collecte terminée.")
             except Exception as exc:
                 result.update(status="ERROR", status_label="Erreur", message=str(exc))
@@ -167,3 +207,5 @@ def run_renseigner(*, config: dict, rows: list[dict], degroupage: dict, stopped:
             on_log("SUCCESS" if result["status"] == "COMPLETED" else "ERROR", f"Ligne {row['excel_row']} : {result['message']}")
     finally:
         close_driver(driver)
+        if http_client is not None:
+            http_client.close()

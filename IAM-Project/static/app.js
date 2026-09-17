@@ -831,7 +831,11 @@ async function loadConfig() {
     const config = data.config;
     $("testLogin").value = config.test_login;
     $("timeoutSeconds").value = config.timeout_seconds;
-    $("headless").checked = Boolean(config.headless);
+    const executionMode = ["visible", "headless", "http"].includes(config.execution_mode)
+      ? config.execution_mode
+      : (config.headless ? "headless" : "visible");
+    const executionModeInput = document.querySelector(`input[name="executionMode"][value="${executionMode}"]`);
+    if (executionModeInput) executionModeInput.checked = true;
     $("debugMode").checked = Boolean(config.debug_mode);
     $("actionDelaySeconds").value = Number(config.action_delay_seconds || 0);
     updateDebugMode();
@@ -856,7 +860,7 @@ async function saveConfiguration(event) {
       body: JSON.stringify({
         test_login: $("testLogin").value.trim(),
         timeout_seconds: Number($("timeoutSeconds").value),
-        headless: $("headless").checked,
+        execution_mode: document.querySelector('input[name="executionMode"]:checked').value,
         debug_mode: $("debugMode").checked,
         action_delay_seconds: Number($("actionDelaySeconds").value || 0),
         wiam_username: $("wiamUsername").value.trim(), wiam_password: $("wiamPassword").value,

@@ -267,7 +267,15 @@
               <div class="field"><label for="wiamPassword">Mot de passe WIAM</label><input id="wiamPassword" type="password" placeholder="Laisser vide pour conserver"></div>
               <div class="field"><label for="testLogin">Login de test</label><input id="testLogin" name="test_login" type="text" required></div>
               <div class="field"><label for="timeoutSeconds">Délai maximum (secondes)</label><input id="timeoutSeconds" name="timeout_seconds" type="number" min="5" max="120" required></div>
-              <label class="check-row"><input id="headless" name="headless" type="checkbox"><span>Exécuter Chrome en arrière-plan</span></label>
+              <div class="field full">
+                <label>Mode d’exécution</label>
+                <div class="assignment-mode" role="radiogroup" aria-label="Mode d’exécution">
+                  <label><input type="radio" name="executionMode" value="visible" checked><span>Chrome visible</span></label>
+                  <label><input type="radio" name="executionMode" value="headless"><span>Chrome en arrière-plan</span></label>
+                  <label><input type="radio" name="executionMode" value="http"><span>Requêtes HTTP (rapide)</span></label>
+                </div>
+                <small>Le mode HTTP accélère CMD → Login dans WIAM. ConnectFlow et les pages WimTech restent sous Selenium ; Chrome s’ouvre automatiquement lorsqu’elles sont nécessaires.</small>
+              </div>
               <label class="check-row"><input id="debugMode" type="checkbox"><span>Mode Debug Selenium</span></label>
               <div id="debugDelayField" class="field is-hidden"><label for="actionDelaySeconds">Délai entre les actions (secondes)</label><input id="actionDelaySeconds" type="number" min="0" max="60" step="0.1" value="0"><small>0 = vitesse normale. Toute valeur positive ralentit chaque navigation, saisie et clic Selenium.</small></div>
               <div class="actions full"><button class="primary" type="submit">Enregistrer</button></div>
@@ -284,6 +292,6 @@
     </main>
   </div>
   <div id="toast" class="toast" role="status"></div>
-  <script src="static/app.js?v=20260916-1"></script>
+  <script src="static/app.js?v=20260917-1"></script>
 </body>
 </html>

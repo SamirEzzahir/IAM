@@ -31,6 +31,7 @@ DEFAULT_CONFIG = {
     **FIXED_URLS,
     "test_login": "I10260472",
     "timeout_seconds": 20,
+    "execution_mode": "visible",
     "headless": False,
     "debug_mode": False,
     "action_delay_seconds": 0,
@@ -51,6 +52,16 @@ def load_config() -> dict:
     result = dict(DEFAULT_CONFIG)
     if isinstance(saved, dict):
         result.update({key: saved[key] for key in DEFAULT_CONFIG if key in saved})
+        # Migrate configurations created before the three execution modes.
+        if "execution_mode" not in saved:
+            result["execution_mode"] = (
+                "headless" if bool(saved.get("headless", False)) else "visible"
+            )
+    if result.get("execution_mode") not in {"visible", "headless", "http"}:
+        result["execution_mode"] = "visible"
+    # Keep the legacy key for all existing Selenium collectors.  In HTTP mode,
+    # unsupported pages deliberately fall back to a visible Chrome window.
+    result["headless"] = result["execution_mode"] == "headless"
     # These internal endpoints are application constants, not user settings.
     # Always override legacy values that may still exist in config.json.
     result.update(FIXED_URLS)
@@ -79,11 +90,21 @@ def save_config(payload: dict) -> dict:
         raise ValueError("Le délai Debug Selenium doit être compris entre 0 et 60 secondes.")
 
     wiam_password = str(payload.get("wiam_password", "")).strip() or current["wiam_password"]
+    execution_mode = payload.get("execution_mode")
+    if execution_mode is None:
+        if "headless" in payload:
+            execution_mode = "headless" if bool(payload["headless"]) else "visible"
+        else:
+            execution_mode = current.get("execution_mode", "visible")
+    execution_mode = str(execution_mode).strip().lower()
+    if execution_mode not in {"visible", "headless", "http"}:
+        raise ValueError("Mode d’exécution invalide.")
     result = {
         **FIXED_URLS,
         "test_login": login,
         "timeout_seconds": timeout,
-        "headless": bool(payload.get("headless", current["headless"])),
+        "execution_mode": execution_mode,
+        "headless": execution_mode == "headless",
         "debug_mode": bool(payload.get("debug_mode", current["debug_mode"])),
         "action_delay_seconds": action_delay,
         "wiam_username": str(payload.get("wiam_username", current["wiam_username"])).strip(),

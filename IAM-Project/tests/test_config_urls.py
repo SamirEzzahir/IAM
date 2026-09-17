@@ -15,6 +15,9 @@ class FixedUrlConfigTests(unittest.TestCase):
         self.assertNotIn('id="wimtechUrl"', html)
         self.assertNotIn('id="wiamUrl"', html)
         self.assertNotIn('id="commandesUrl"', html)
+        self.assertIn('name="executionMode" value="visible" checked', html)
+        self.assertIn('name="executionMode" value="headless"', html)
+        self.assertIn('name="executionMode" value="http"', html)
 
     def test_saved_urls_cannot_override_backend_defaults(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -47,6 +50,28 @@ class FixedUrlConfigTests(unittest.TestCase):
         self.assertEqual(saved["wimtech_url"], config.WIMTECH_URL)
         self.assertEqual(saved["wiam_url"], config.WIAM_URL)
         self.assertEqual(saved["commandes_url"], config.COMMANDES_URL)
+
+    def test_http_mode_is_saved_without_enabling_headless(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "config.json"
+            with patch.object(config, "CONFIG_PATH", path):
+                saved = config.save_config({"execution_mode": "http"})
+                loaded = config.load_config()
+
+        self.assertEqual(saved["execution_mode"], "http")
+        self.assertFalse(saved["headless"])
+        self.assertEqual(loaded["execution_mode"], "http")
+        self.assertFalse(loaded["headless"])
+
+    def test_legacy_headless_setting_is_migrated(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "config.json"
+            path.write_text(json.dumps({"headless": True}), encoding="utf-8")
+            with patch.object(config, "CONFIG_PATH", path):
+                loaded = config.load_config()
+
+        self.assertEqual(loaded["execution_mode"], "headless")
+        self.assertTrue(loaded["headless"])
 
 
 if __name__ == "__main__":

@@ -267,7 +267,14 @@ Dans l'onglet **Configuration**, vérifier :
 - l'URL Mutation GPON ;
 - le Login de test utilisé pour ouvrir la page d'ajout de constitution ;
 - le délai Selenium ;
-- le mode Chrome visible ou arrière-plan.
+- le mode d’exécution : Chrome visible (par défaut), Chrome en arrière-plan,
+  ou requêtes HTTP pour les pages compatibles.
+
+Le mode **Requêtes HTTP** est actuellement appliqué uniquement à la recherche
+en lecture seule **CMD → Login** de WIAM dans **Renseigner PCOs**. ConnectFlow,
+les constitutions WimTech et toutes les mutations continuent d’utiliser
+Selenium. Lorsque l’une de ces pages est nécessaire en mode HTTP, Chrome est
+ouvert automatiquement en mode visible.
 
 La valeur MVP du Login de test est : `I10260472`.
 
