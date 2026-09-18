@@ -41,7 +41,7 @@ from result_excel import (
 )
 from renseigner import run_renseigner
 from outlook_collector import OutlookCollector
-from outlook_store import OutlookStore
+from outlook_store import OUTLOOK_COLUMNS, OutlookStore
 from wimtech_assigner import assign_login_to_first_port
 from wimtech_bulk_mutator import mutate_bulk_rows
 from wimtech_checker import (
@@ -786,7 +786,7 @@ def run_commandes_job(job_id: str) -> None:
 
 @app.get("/")
 def index():
-    return render_template("index.html")
+    return render_template("index.html", outlook_columns=OUTLOOK_COLUMNS)
 
 
 @app.errorhandler(RequestEntityTooLarge)

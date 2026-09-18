@@ -20,6 +20,7 @@ META_COLUMNS = (
     ("received", "Date réception"), ("sender", "Expéditeur"),
     ("subject", "Sujet"), ("folder", "Dossier Outlook"),
 )
+OUTLOOK_COLUMNS = (*COLUMNS, *META_COLUMNS)
 
 
 class OutlookStore:
@@ -97,7 +98,7 @@ class OutlookStore:
         book = Workbook()
         sheet = book.active
         sheet.title = "Collecte Outlook"
-        columns = (*COLUMNS, *META_COLUMNS)
+        columns = OUTLOOK_COLUMNS
         sheet.append([label for _key, label in columns])
         for row_index, item in enumerate(rows, 2):
             row = json.loads(item[0])

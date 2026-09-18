@@ -6,6 +6,7 @@ let outlookTimer = null;
 let outlookActive = false;
 let outlookSubjects = [];
 let outlookSenders = [];
+const outlookColumns = JSON.parse($("outlookResultsTable").dataset.columns);
 
 function renderOutlookTags() {
   for (const [kind, values] of [["Subject", outlookSubjects], ["Sender", outlookSenders]]) {
@@ -94,8 +95,8 @@ function renderOutlook(data) {
   $("outlookLastScan").textContent = `Dernière vérification : ${formatDate(data.last_scan)}${data.folder_label ? " · " + data.folder_label : ""}`;
   $("outlookMessage").innerHTML = [data.error, data.export_error].filter(Boolean).map(message => `<div class="warning">${escapeHtml(message)}</div>`).join("");
   renderPaginatedTable("outlook", "outlookResultsBody", data.rows || [], row =>
-    `<tr>${[row.commande, row.ont, row.version, row.technologie, row.client, row.login, row.odf, row.pco, row.brin, row.type_pco, row.pose_pco, row.pose_splitter, row.gps_pco, row.gps_splitter, row.longueur, row.msan, row.autres, formatDate(row.received), row.sender, row.subject, row.folder].map(value => `<td>${escapeHtml(value || "—")}</td>`).join("")}</tr>`,
-    '<tr><td colspan="21" class="empty">Aucune ligne collectée.</td></tr>');
+    `<tr>${outlookColumns.map(([key]) => `<td>${escapeHtml((key === "received" ? formatDate(row[key]) : row[key]) || "—")}</td>`).join("")}</tr>`,
+    `<tr><td colspan="${outlookColumns.length}" class="empty">Aucune ligne collectée.</td></tr>`);
   $("outlookLog").innerHTML = (data.logs || []).map(line => `<div class="log-line ${escapeHtml(line.level.toLowerCase())}"><time>${escapeHtml(formatTime(line.time))}</time><span>${escapeHtml(line.message)}</span></div>`).join("");
 }
 
