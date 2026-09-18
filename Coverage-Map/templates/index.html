@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block head %}<link rel="stylesheet" href="{{ base }}/static/vendor/leaflet.css">{% endblock %}
+{% block content %}
+<main class="workspace">
+  <aside class="sidebar">
+    <div class="eyebrow">LE RÉSEAU, À VOTRE ADRESSE</div>
+    <h1>Un point.<br>Vos possibilités.</h1>
+    <p class="muted">Recherchez une position pour connaître les opérateurs présents dans les zones publiées.</p>
+    <form id="gps-form" class="card">
+      <label for="gps">Coordonnées GPS</label>
+      <input id="gps" required placeholder="34.035175, -4.987058" autocomplete="off">
+      <small>Latitude, longitude · ou cliquez sur la carte.</small>
+      <button class="primary" type="submit">Explorer cette position →</button>
+    </form>
+    <div id="lookup-result" aria-live="polite" class="result">Sélectionnez un emplacement pour commencer.</div>
+    <section class="card"><h2>Couches de la carte</h2><div id="layers"></div><p id="data-note" class="muted small"></p><button id="refresh" type="button" class="secondary">Actualiser les données</button></section>
+    <div class="notice">La présence dans une zone indique une couverture déclarée, pas une garantie de raccordement. Vérifiez les capacités PCO.</div>
+    <p id="status" role="status" class="small muted"></p>
+  </aside>
+  <section class="map-panel" aria-label="Carte de couverture">
+    <div class="map-heading"><span><i class="live-dot"></i> Vue réseau</span><span>IAM · INWI · ORANGE</span></div>
+    <div id="map"></div>
+    <p id="tile-warning" class="map-warning" hidden>Fond de carte indisponible : vérifiez Internet. Les zones et la recherche GPS restent utilisables.</p>
+  </section>
+</main>
+<section id="pco-section" class="data-section" hidden>
+  <div class="section-title"><div class="eyebrow">INFRASTRUCTURE</div><h2>PCO & occupation</h2></div>
+  <label for="pco-query">Rechercher un PCO ou une zone (préfixe du nom)</label>
+  <input id="pco-query" placeholder="Ex. O1A1T-ZO ou 512/2" autocomplete="off">
+  <p id="pco-count" class="muted small"></p>
+  <div class="table-scroll"><table><thead id="pco-head"></thead><tbody id="pco-rows"></tbody></table></div>
+</section>
+<section id="clients-section" class="data-section" hidden>
+  <div class="section-title"><div class="eyebrow">DONNÉES AUTORISÉES</div><h2>Base clients</h2></div>
+  <form id="clients-form" class="inline-form"><label for="client-query">Nom, adresse, login, ONT ou PCO</label><input id="client-query" minlength="2" required><button class="primary">Rechercher</button></form>
+  <p id="client-count" class="muted small" aria-live="polite"></p>
+  <div class="table-scroll"><table><thead><tr>{% for column in client_columns %}<th>{{ column }}</th>{% endfor %}</tr></thead><tbody id="client-rows"></tbody></table></div>
+  <div class="pagination"><button id="previous" type="button" class="secondary" disabled>← Précédent</button><button id="next" type="button" class="secondary" disabled>Suivant →</button></div>
+</section>
+{% endblock %}
+{% block scripts %}<script src="{{ base }}/static/vendor/leaflet.js"></script><script src="{{ base }}/static/map.js"></script>{% endblock %}

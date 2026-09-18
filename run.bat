@@ -13,10 +13,15 @@ call :ensure_environment "IAM-ADSL" "flask, selenium, pdfplumber, iam_adsl" "req
 if errorlevel 1 goto :error
 call :ensure_environment "IAM-Project" "flask, selenium, openpyxl, waitress, requests, bs4, win32com.client, pythoncom" "requirements.txt"
 if errorlevel 1 goto :error
+call :ensure_environment "Coverage-Map" "flask, waitress, openpyxl, defusedxml, shapely" "requirements.txt"
+if errorlevel 1 goto :error
+"%~dp0Coverage-Map\.venv\Scripts\python.exe" "%~dp0Coverage-Map\app.py" --setup
+if errorlevel 1 goto :error
 
 echo.
 echo ============================================================
-echo   Starting Cuiver, FO and VULA on http://127.0.0.1:8080
+echo   Starting Cuiver, FO, VULA and Couverture FTTH
+echo   The portal address will be displayed below.
 echo ============================================================
 echo.
 

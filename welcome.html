@@ -61,7 +61,7 @@
     h1 { margin: 17px 0 18px; max-width: 760px; font-size: clamp(42px, 7vw, 78px); line-height: .99; letter-spacing: -.055em; }
     h1 em { color: var(--red); font-style: normal; }
     .hero p { max-width: 630px; margin: 0; color: var(--muted); font-size: 17px; line-height: 1.7; }
-    .services { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+    .services { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; }
     .service {
       position: relative; min-height: 290px; padding: 24px; overflow: hidden;
       display: flex; flex-direction: column; color: inherit; text-decoration: none;
@@ -87,6 +87,7 @@
     .cuiver { --accent: #b36a19; --accent-soft: rgba(196, 119, 32, .12); }
     .fo { --accent: #c7192d; --accent-soft: rgba(199, 25, 45, .11); }
     .vula { --accent: #176f79; --accent-soft: rgba(23, 111, 121, .11); }
+    .coverage { --accent: #365ac4; --accent-soft: rgba(54, 90, 196, .11); }
     footer { display: flex; justify-content: space-between; gap: 15px; padding-top: 33px; color: #8a939a; font-size: 11px; }
     footer a { color: var(--red-dark); font-weight: 700; text-decoration: none; }
     footer a:hover { text-decoration: underline; }
@@ -107,7 +108,7 @@
     <section class="hero">
       <div class="eyebrow">Portail des opérations réseau</div>
       <h1>Bienvenue dans votre espace <em>SMDA.</em></h1>
-      <p>Accédez rapidement aux outils Cuiver, Fibre Optique et VULA depuis un point d’entrée unique. Choisissez un service pour commencer.</p>
+      <p>Accédez rapidement aux outils Cuiver, Fibre Optique, VULA et Couverture FTTH depuis un point d’entrée unique. Choisissez un service pour commencer.</p>
     </section>
 
     <section class="services" aria-label="Services disponibles">
@@ -129,6 +130,16 @@
         <h2>Fibre Optique</h2>
         <p>Contrôle des PCO, affectations automatiques, mutations en masse et suivi des disponibilités.</p>
         <div class="launch"><span>OUVRIR LE SERVICE</span><span class="arrow">→</span></div>
+      </a>
+
+      <a class="service coverage" href="/Coverage/">
+        <div class="card-top">
+          <div class="icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 6 6-3 6 3 6-3v15l-6 3-6-3-6 3V6Z"/><path d="M9 3v15M15 6v15"/></svg></div>
+          <span class="status" data-service="coverage"><i></i><span>Vérification</span></span>
+        </div>
+        <h2>Couverture FTTH</h2>
+        <p>Carte multi-opérateurs IAM, INWI et Orange. Recherche GPS, PCO et données partagées par l'administrateur.</p>
+        <div class="launch"><span>EXPLORER LA CARTE</span><span class="arrow">→</span></div>
       </a>
 
       <a class="service vula" href="/VULA/">
@@ -157,9 +168,10 @@
           node.querySelector('span').textContent = ready ? 'En ligne' : 'Indisponible';
           if (ready) online += 1;
         });
-        const allReady = online === 3;
+        const total = document.querySelectorAll('[data-service]').length;
+        const allReady = online === total;
         document.getElementById('global-dot').classList.toggle('ready', allReady);
-        document.getElementById('global-status').textContent = allReady ? '3 services opérationnels' : `${online} service${online > 1 ? 's' : ''} en ligne`;
+        document.getElementById('global-status').textContent = allReady ? `${total} services opérationnels` : `${online} service${online > 1 ? 's' : ''} en ligne`;
       } catch (_) {
         document.getElementById('global-status').textContent = 'Statut indisponible';
       }

@@ -1,4 +1,4 @@
-"""Local reverse proxy and process supervisor for the three FO tools."""
+"""Local reverse proxy and process supervisor for the FO tools."""
 
 from __future__ import annotations
 
@@ -42,6 +42,7 @@ SERVICES = (
     Service("cuiver", "Cuiver", "/Cuiver", ROOT / "IAM-ADSL", 5001),
     Service("fo", "FO", "/FO", ROOT / "IAM-Project", 5055, "/api/health"),
     Service("vula", "VULA", "/VULA", ROOT / "Project-IAM-FO-VULA", 5000),
+    Service("coverage", "Couverture FTTH", "/Coverage", ROOT / "Coverage-Map", 5060, "/api/health"),
 )
 
 HOP_BY_HOP_HEADERS = {
@@ -70,6 +71,15 @@ def port_is_open(port: int, timeout: float = 0.25) -> bool:
 def start_services() -> None:
     for service in SERVICES:
         if port_is_open(service.port):
+            if service.key == "coverage":
+                connection = http.client.HTTPConnection("127.0.0.1", service.port, timeout=3)
+                try:
+                    connection.request("GET", "/api/health")
+                    payload = json.loads(connection.getresponse().read())
+                    if payload.get("prefix") != service.prefix:
+                        raise RuntimeError("Stop the standalone Coverage-Map server before starting the portal (port 5060).")
+                finally:
+                    connection.close()
             print(f"[reuse] {service.label} is already listening on port {service.port}.")
             continue
         if not service.python.is_file():
@@ -83,6 +93,10 @@ def start_services() -> None:
             environment["OPEN_BROWSER"] = "0"
             environment["APP_HOST"] = "127.0.0.1"
             environment["APP_PORT"] = str(service.port)
+        if service.key == "coverage":
+            environment["COVERAGE_HOST"] = "127.0.0.1"
+            environment["COVERAGE_PORT"] = str(service.port)
+            environment["COVERAGE_PREFIX"] = service.prefix
 
         process = subprocess.Popen(
             [str(service.python), "app.py"],
@@ -278,7 +292,8 @@ class GatewayHandler(BaseHTTPRequestHandler):
 
 def open_portal() -> None:
     time.sleep(0.8)
-    webbrowser.open(f"http://{GATEWAY_HOST}:{GATEWAY_PORT}/")
+    browser_host = "127.0.0.1" if GATEWAY_HOST == "0.0.0.0" else GATEWAY_HOST
+    webbrowser.open(f"http://{browser_host}:{GATEWAY_PORT}/")
 
 
 def main() -> int:
@@ -294,7 +309,9 @@ def main() -> int:
 
     address = f"http://{GATEWAY_HOST}:{GATEWAY_PORT}/"
     print(f"\nFO portal is ready: {address}")
-    print("Press Ctrl+C to stop the portal and the three services.\n")
+    if GATEWAY_HOST == "0.0.0.0":
+        print(f"LAN access: http://IP_DU_PC:{GATEWAY_PORT}/ (private network only)")
+    print("Press Ctrl+C to stop the portal and its services.\n")
     if os.getenv("OPEN_BROWSER", "1").lower() in {"1", "true", "yes"}:
         threading.Thread(target=open_portal, daemon=True).start()
 
