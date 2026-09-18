@@ -13,7 +13,7 @@ from openpyxl import Workbook
 from openpyxl.cell.cell import ILLEGAL_CHARACTERS_RE
 from openpyxl.styles import Font, PatternFill
 
-from outlook_tables import COLUMNS
+from outlook_tables import COLUMNS, PARSER_VERSION
 
 
 META_COLUMNS = (
@@ -45,13 +45,23 @@ class OutlookStore:
 
     def seen(self, message_id: str) -> bool:
         with self.lock, closing(self.connect()) as db:
-            return db.execute("SELECT 1 FROM messages WHERE id=?", (message_id,)).fetchone() is not None
+            row = db.execute("SELECT metadata FROM messages WHERE id=?", (message_id,)).fetchone()
+        return bool(row and json.loads(row[0]).get("parser_version", 1) >= PARSER_VERSION)
 
     def record(self, message_id: str, metadata: dict, rows: list[dict]) -> bool:
         with self.lock, closing(self.connect()) as db, db:
-            if db.execute("SELECT 1 FROM messages WHERE id=?", (message_id,)).fetchone():
-                return False
-            db.execute("INSERT INTO messages VALUES (?, ?, ?)", (
+            previous = db.execute("SELECT metadata, row_count FROM messages WHERE id=?", (message_id,)).fetchone()
+            if previous:
+                if json.loads(previous[0]).get("parser_version", 1) >= PARSER_VERSION:
+                    return False
+                if previous[1] and not rows:
+                    # Keep historical data if the original table cannot be read.
+                    raise ValueError("Le tableau d’origine n’est plus lisible ; anciennes lignes conservées.")
+                # Reparse an old message atomically instead of guessing how its
+                # previously merged ODF/MSAN values should be split.
+                db.execute("DELETE FROM extracted_rows WHERE message_id=?", (message_id,))
+            metadata = {**metadata, "parser_version": PARSER_VERSION}
+            db.execute("INSERT OR REPLACE INTO messages VALUES (?, ?, ?)", (
                 message_id, json.dumps(metadata, ensure_ascii=False), len(rows),
             ))
             db.executemany("INSERT INTO extracted_rows(message_id, payload) VALUES (?, ?)", [

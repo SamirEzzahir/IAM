@@ -13,10 +13,11 @@ SUBJECTS = (
     "Activation commande FTTH", "Creation CD FTTH", "CREATION GPON",
     "commandes GPON", "Activation Mise en",
 )
+PARSER_VERSION = 2
 COLUMNS = (
     ("commande", "Commande"), ("ont", "ONT"), ("version", "Version"),
     ("technologie", "Technologie"), ("client", "Client"), ("login", "Login"),
-    ("odf", "ODF"), ("pco", "PCO"), ("brin", "Brin"),
+    ("odf", "ODF"), ("msan", "MSAN"), ("pco", "PCO"), ("brin", "Brin"),
     ("type_pco", "Type PCO"), ("pose_pco", "Pose PCO"),
     ("pose_splitter", "Pose nouveau splitter"), ("gps_pco", "GPS PCO"),
     ("gps_splitter", "GPS nouveau splitter"), ("longueur", "Longueur"),
@@ -45,7 +46,8 @@ ALIASES = {
     "commande": ("Commande GPON", "COM", "Commande", "CMD"),
     "ont": ("ONT",), "version": ("Version",), "technologie": ("Technologie",),
     "client": ("Intitulé client", "Nom du client", "Nom client", "Client"),
-    "login": ("Login",), "odf": ("MSAN / SRO", "MSAN", "ODF", "SRO"),
+    "login": ("Login",), "odf": ("MSAN / SRO", "ODF", "SRO"),
+    "msan": ("MSAN", "MSAN OLT"),
     "pco": ("PCO",), "brin": ("brin", "num de Brin", "Numéro de brin"),
     "type_pco": ("catégorie", "TYPE DE PCO", "Type PCO"),
     "pose_pco": ("Pose PCO(O/N)", "Pose PCO", "NOUVEAU PCO"),

@@ -1,4 +1,5 @@
 import io
+import json
 import tempfile
 import unittest
 from datetime import datetime, timedelta, timezone
@@ -46,20 +47,30 @@ class TableTests(unittest.TestCase):
         rows = extract_rows(html)
         self.assertEqual(len(rows), 2)
         self.assertEqual(rows[0]["odf"], "GHI-FF-EXEMPLE")
+        self.assertEqual(rows[0]["msan"], "")
         self.assertEqual(rows[0]["longueur"], "73M")
         self.assertEqual(rows[1]["gps_pco"], "34,031897 /-5,039591")
 
-    def test_second_example_combines_msan_odf_and_coordinate_columns(self):
+    def test_second_example_separates_msan_odf_and_combines_coordinates(self):
         headers = ["COM", "ONT", "NOM DU CLIENT", "MSAN", "ODF", "NOUVEAU PCO",
                    "LONGEUR", "PCO", "TYPE DE PCO", "num de Brin", "CGPS PCO x",
                    "CGPS PCO y", "login", "Pose nouveau splitter O/N"]
         row = ["101000003", "ONT0003", "Client test", "GHI\nAIN   CHEGAGE", "OFCH",
                "OUI", "61", "911/2", "FACADE", "5", "33.889088", "-5.038047", "LOGIN3", "N"]
         actual = extract_rows(table(headers, row))[0]
-        self.assertEqual(actual["odf"], "GHI AIN CHEGAGE | OFCH")
+        self.assertEqual(actual["odf"], "OFCH")
+        self.assertEqual(actual["msan"], "GHI AIN CHEGAGE")
         self.assertEqual(actual["gps_pco"], "33.889088 / -5.038047")
         self.assertEqual(actual["brin"], "5")
         self.assertEqual(actual["pose_pco"], "OUI")
+
+    def test_msan_olt_alias_stays_separate_from_odf(self):
+        actual = extract_rows(table(
+            ["COM", "Login", "MSAN / SRO", "MSAN OLT"],
+            ["CMD1", "LOGIN1", "ODF1", "OLT1"],
+        ))[0]
+        self.assertEqual(actual["odf"], "ODF1")
+        self.assertEqual(actual["msan"], "OLT1")
 
     def test_third_example_keeps_dfoi_command_and_missing_columns_blank(self):
         row = [*ROW[:13]]
@@ -84,6 +95,37 @@ class TableTests(unittest.TestCase):
 
 
 class StoreTests(unittest.TestCase):
+    def test_legacy_rows_are_reparsed_without_duplicates_or_data_loss(self):
+        with tempfile.TemporaryDirectory() as directory:
+            store = OutlookStore(Path(directory))
+            old_row = {"commande": "CMD1", "login": "LOGIN1", "odf": "OLT1 | ODF1"}
+            store.record("old-mail", {}, [old_row])
+            db = store.connect()
+            try:
+                with db:
+                    db.execute("UPDATE messages SET metadata=? WHERE id=?", (json.dumps({}), "old-mail"))
+            finally:
+                db.close()
+            self.assertFalse(store.seen("old-mail"))
+            with self.assertRaises(ValueError):
+                store.record("old-mail", {}, [])
+            self.assertEqual(store.summary()["rows"][0]["odf"], "OLT1 | ODF1")
+            fresh_rows = extract_rows(table(
+                ["COM", "Login", "MSAN OLT", "ODF"], ["CMD1", "LOGIN1", "OLT1", "ODF1"],
+            ))
+            self.assertTrue(store.record("old-mail", {}, fresh_rows))
+            self.assertTrue(store.seen("old-mail"))
+            self.assertFalse(store.record("old-mail", {}, fresh_rows))
+            summary = store.summary()
+            self.assertEqual((summary["emails"], summary["total"]), (1, 1))
+            self.assertEqual(summary["rows"][0]["odf"], "ODF1")
+            self.assertEqual(summary["rows"][0]["msan"], "OLT1")
+            book = load_workbook(io.BytesIO(store.excel_bytes()))
+            headings = {cell.value: cell.column for cell in book.active[1]}
+            self.assertEqual(book.active.cell(2, headings["ODF"]).value, "ODF1")
+            self.assertEqual(book.active.cell(2, headings["MSAN"]).value, "OLT1")
+            book.close()
+
     def test_dedup_persists_across_restarts_and_excel_cells_are_text(self):
         with tempfile.TemporaryDirectory() as directory:
             store = OutlookStore(Path(directory))
@@ -100,7 +142,7 @@ class StoreTests(unittest.TestCase):
             sheet = book.active
             headings = {cell.value: cell.column for cell in sheet[1]}
             self.assertIn("ODF", headings)
-            self.assertNotIn("MSAN", headings)
+            self.assertEqual(headings["MSAN"], headings["ODF"] + 1)
             self.assertEqual(sheet.cell(2, headings["Client"]).data_type, "s")
             self.assertEqual(sheet.cell(2, headings["ONT"]).value, "000123")
             self.assertEqual(sheet.max_row, 2)

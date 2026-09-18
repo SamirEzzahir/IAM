@@ -273,11 +273,11 @@
               <div class="actions full"><button id="outlookStartBtn" class="primary" type="submit">▶ Démarrer la surveillance</button><button id="outlookStopBtn" class="secondary danger-outline" type="button" disabled>■ Arrêter</button><a id="outlookDownloadBtn" class="secondary button-link" href="api/outlook/result.xlsx">↓ Télécharger Excel</a></div>
             </form>
             <div id="outlookMessage" class="message-slot" role="status"></div>
-            <p class="notice top-gap">Fichier automatique : IAM-Project/data/outlook/collecte_outlook.xlsx. Les colonnes MSAN / SRO, MSAN et ODF sont regroupées dans ODF ; lorsque plusieurs valeurs existent, elles sont séparées par « | ».</p>
+            <p class="notice top-gap">Fichier automatique : IAM-Project/data/outlook/collecte_outlook.xlsx. MSAN / SRO et ODF alimentent la colonne ODF. MSAN et MSAN OLT alimentent la colonne MSAN, séparée et placée à côté.</p>
           </article>
           <article class="card results-card">
             <div class="result-head"><div><h2>Dernières lignes collectées</h2><p id="outlookSummary">Aucune collecte.</p><p id="outlookLastScan"></p></div><span id="outlookStatusBadge" class="badge neutral">Arrêté</span></div>
-            <div class="results"><table><thead><tr><th>Commande</th><th>ONT</th><th>Client</th><th>Login</th><th>ODF</th><th>PCO</th><th>Brin</th><th>GPS PCO</th><th>Date réception</th><th>Sujet</th></tr></thead><tbody id="outlookResultsBody"><tr><td colspan="10" class="empty">Aucune ligne collectée.</td></tr></tbody></table></div>
+            <div class="results"><table><thead><tr><th>Commande</th><th>ONT</th><th>Client</th><th>Login</th><th>ODF</th><th>MSAN</th><th>PCO</th><th>Brin</th><th>GPS PCO</th><th>Date réception</th><th>Sujet</th></tr></thead><tbody id="outlookResultsBody"><tr><td colspan="11" class="empty">Aucune ligne collectée.</td></tr></tbody></table></div>
             <p class="notice">Les 100 dernières lignes sont affichées ici. Le fichier Excel contient toutes les lignes collectées, même après un redémarrage.</p>
           </article>
           <article class="log-card"><div class="log-title"><span>●</span> Journal Outlook</div><div id="outlookLog" class="live-log"></div></article>
@@ -317,6 +317,6 @@
   </div>
   <div id="toast" class="toast" role="status"></div>
   <script src="static/app.js?v=20260918-1"></script>
-  <script src="static/outlook.js?v=20260918-1"></script>
+  <script src="static/outlook.js?v=20260918-2"></script>
 </body>
 </html>

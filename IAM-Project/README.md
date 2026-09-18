@@ -285,10 +285,11 @@ Les sujets doivent contenir `Activation commande FTTH`, `Creation CD FTTH`,
 `CREATION GPON`, `commandes GPON` ou `Activation Mise en`. La comparaison ignore
 la casse, les accents et les espaces supplémentaires.
 
-Les variantes de colonnes des trois exemples sont reconnues. `MSAN / SRO`,
-`MSAN` et `ODF` alimentent la colonne finale **ODF**. Si MSAN et ODF sont tous
-deux renseignés dans un email, leurs valeurs sont conservées et séparées par
-` | `. Les colonnes absentes restent vides et les colonnes supplémentaires sont
+Les variantes de colonnes des trois exemples sont reconnues. `MSAN / SRO` et
+`ODF` alimentent la colonne **ODF**. `MSAN` et `MSAN OLT` alimentent la colonne
+**MSAN**, placée juste après ODF dans le tableau et l'Excel. Les deux valeurs
+restent séparées si elles figurent dans le même email.
+Les colonnes absentes restent vides et les colonnes supplémentaires sont
 conservées dans **Autres colonnes**. Les références `DFOI…`, les brins et les
 numéros ONT restent du texte. Date, expéditeur, sujet et dossier sont ajoutés
 pour retrouver l'email source.
@@ -298,6 +299,12 @@ Les données et identifiants des messages traités sont enregistrés dans
 duplique pas ses lignes, même après redémarrage. Un nouvel email peut contenir
 une commande déjà reçue : il est conservé comme un nouveau message. Un email
 sans tableau reconnu est signalé dans le journal et compté séparément.
+
+Pour corriger les anciennes lignes où MSAN et ODF étaient fusionnés, relancer
+**Depuis une date** couvrant les emails concernés. Les messages de l'ancien
+format sont relus et leurs lignes remplacées sans doublons. Aucune séparation
+n'est devinée à partir des anciennes valeurs ; si le mail d'origine n'est plus
+accessible, les anciennes lignes sont conservées.
 
 Le fichier `data/outlook/collecte_outlook.xlsx` est actualisé automatiquement.
 Le téléchargement reconstruit toujours l'Excel complet à partir des données
