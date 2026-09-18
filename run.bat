@@ -11,7 +11,7 @@ call :ensure_environment "Project-IAM-FO-VULA" "flask, selenium" "requirements.t
 if errorlevel 1 goto :error
 call :ensure_environment "IAM-ADSL" "flask, selenium, pdfplumber, iam_adsl" "requirements-dev.txt"
 if errorlevel 1 goto :error
-call :ensure_environment "IAM-Project" "flask, selenium, openpyxl, waitress, requests, bs4" "requirements.txt"
+call :ensure_environment "IAM-Project" "flask, selenium, openpyxl, waitress, requests, bs4, win32com.client, pythoncom" "requirements.txt"
 if errorlevel 1 goto :error
 
 echo.

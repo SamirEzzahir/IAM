@@ -23,6 +23,7 @@
         <a href="#tab-bulk" data-tab="bulk"><span class="nav-icon">▤</span><span>Bulk Mutation CMD&amp;Login</span></a>
         <a href="#tab-renseigner" data-tab="renseigner"><span class="nav-icon">⌁</span><span>Renseigner PCOs</span></a>
         <a href="#tab-commandes" data-tab="commandes"><span class="nav-icon">◉</span><span>Collecte données ConnectFlow</span></a>
+        <a href="#tab-outlook" data-tab="outlook"><span class="nav-icon">✉</span><span>Collecte Outlook</span></a>
         <a href="#tab-available" data-tab="available"><span class="nav-icon">✓</span><span>PCO disponibles</span></a>
         <a href="#tab-config" data-tab="config"><span class="nav-icon">⚙</span><span>Configuration</span></a>
       </nav>
@@ -259,6 +260,29 @@
           </article>
         </section>
 
+        <section id="tab-outlook" class="tab">
+          <article class="card panel">
+            <div class="section-heading"><span class="section-icon">✉</span><div><h2>Emails FTTH → Excel</h2><p>Récupérer les tableaux des emails Outlook et les réunir dans un fichier Excel.</p></div></div>
+            <div class="notice top-gap">La surveillance utilise Outlook classique sur le PC qui exécute l’application. Gardez le serveur lancé ; vous pouvez changer d’onglet ou fermer cette page. Les messages restent inchangés dans Outlook.</div>
+            <form id="outlookForm" class="config-grid">
+              <div class="field full"><label for="outlookFolder">Sous-dossier de la boîte de réception (facultatif)</label><input id="outlookFolder" type="text" placeholder="Boîte de réception principale" maxlength="500"><small>Laisser vide pour la réception principale. Exemple : FTTH/Activations. Seul le dossier indiqué est surveillé, sans ses sous-dossiers.</small></div>
+              <div class="field full"><label>Période de collecte</label><div class="assignment-mode" role="radiogroup" aria-label="Période Outlook"><label><input type="radio" name="outlookMode" value="new" checked><span>Nouveaux emails seulement</span></label><label><input type="radio" name="outlookMode" value="since"><span>Depuis une date</span></label></div><small>« Nouveaux » commence à chaque clic sur Démarrer. « Depuis une date » reprend l’historique puis surveille les nouveaux emails. Les emails déjà traités ne sont pas ajoutés une deuxième fois.</small></div>
+              <div id="outlookSinceField" class="field is-hidden"><label for="outlookSince">Date de début</label><input id="outlookSince" type="date"><small>Minuit, heure locale du PC Outlook.</small></div>
+              <div class="field"><label for="outlookInterval">Vérifier toutes les (secondes)</label><input id="outlookInterval" type="number" min="10" max="3600" value="30" required></div>
+              <div class="field full"><label>Sujets contenant une de ces expressions</label><div class="notice">Activation commande FTTH · Creation CD FTTH · CREATION GPON · commandes GPON · Activation Mise en</div><small>Majuscules, accents et espaces supplémentaires sont ignorés.</small></div>
+              <div class="actions full"><button id="outlookStartBtn" class="primary" type="submit">▶ Démarrer la surveillance</button><button id="outlookStopBtn" class="secondary danger-outline" type="button" disabled>■ Arrêter</button><a id="outlookDownloadBtn" class="secondary button-link" href="api/outlook/result.xlsx">↓ Télécharger Excel</a></div>
+            </form>
+            <div id="outlookMessage" class="message-slot" role="status"></div>
+            <p class="notice top-gap">Fichier automatique : IAM-Project/data/outlook/collecte_outlook.xlsx. Les colonnes MSAN / SRO, MSAN et ODF sont regroupées dans ODF ; lorsque plusieurs valeurs existent, elles sont séparées par « | ».</p>
+          </article>
+          <article class="card results-card">
+            <div class="result-head"><div><h2>Dernières lignes collectées</h2><p id="outlookSummary">Aucune collecte.</p><p id="outlookLastScan"></p></div><span id="outlookStatusBadge" class="badge neutral">Arrêté</span></div>
+            <div class="results"><table><thead><tr><th>Commande</th><th>ONT</th><th>Client</th><th>Login</th><th>ODF</th><th>PCO</th><th>Brin</th><th>GPS PCO</th><th>Date réception</th><th>Sujet</th></tr></thead><tbody id="outlookResultsBody"><tr><td colspan="10" class="empty">Aucune ligne collectée.</td></tr></tbody></table></div>
+            <p class="notice">Les 100 dernières lignes sont affichées ici. Le fichier Excel contient toutes les lignes collectées, même après un redémarrage.</p>
+          </article>
+          <article class="log-card"><div class="log-title"><span>●</span> Journal Outlook</div><div id="outlookLog" class="live-log"></div></article>
+        </section>
+
         <section id="tab-config" class="tab">
           <article class="card panel">
             <div class="section-heading"><span class="section-icon">⚙</span><div><h2>Configuration WimTech</h2><p>Les URL internes WimTech, WIAM et ConnectFlow sont intégrées automatiquement dans le backend.</p></div></div>
@@ -292,6 +316,7 @@
     </main>
   </div>
   <div id="toast" class="toast" role="status"></div>
-  <script src="static/app.js?v=20260917-1"></script>
+  <script src="static/app.js?v=20260918-1"></script>
+  <script src="static/outlook.js?v=20260918-1"></script>
 </body>
 </html>

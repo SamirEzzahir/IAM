@@ -120,6 +120,7 @@ function switchTab(name) {
     bulk: ["FB EMM · Bulk Mutation CMD&Login", "Mutation Excel avec PCO et brin exacts"],
     renseigner: ["FB EMM · Renseigner PCOs", "Collecte des Logins et constitutions actuelles"],
     commandes: ["FB EMM · Collecte données ConnectFlow", "Collecte PCO, splitter et ONT par CMD"],
+    outlook: ["FB EMM · Collecte Outlook", "Tableaux des emails FTTH vers Excel"],
     available: ["FB EMM · PCO disponibles", "Collection des ports disponibles pour les prochaines fonctions"],
     config: ["FB EMM · Configuration", "Paramètres locaux de WimTech et Selenium"],
   };

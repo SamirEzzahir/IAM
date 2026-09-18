@@ -14,7 +14,7 @@ class AppExportTests(unittest.TestCase):
         html = response.get_data(as_text=True)
         self.assertIn('href="#tab-config" data-tab="config"', html)
         self.assertIn('href="#tab-available" data-tab="available"', html)
-        self.assertIn("app.js?v=20260917-1", html)
+        self.assertIn("app.js?v=20260918-1", html)
         self.assertIn('name="assignmentMode" value="single"', html)
         self.assertIn('id="assignDownloadBtn"', html)
         self.assertIn('id="downloadAvailableExcel"', html)

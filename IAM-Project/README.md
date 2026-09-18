@@ -264,6 +264,56 @@ fin du premier. Fermer la fenêtre du script arrête le service.
 
 ## Configuration
 
+### Collecte Outlook → Excel
+
+L'onglet **Collecte Outlook** surveille les tableaux présents dans le corps HTML
+des emails. Il utilise Outlook classique installé et configuré sur le PC Windows
+qui exécute `/FO`, avec la même connexion MAPI que `testemail.py`. Il ne lit pas
+les pièces jointes et ne modifie ni les messages ni leur état lu/non lu.
+
+1. Ouvrir Outlook classique sur ce PC avec le compte souhaité.
+2. Laisser le dossier vide pour la boîte de réception du compte Outlook par
+   défaut, ou saisir un chemin relatif comme `FTTH/Activations`. Le dossier
+   choisi est surveillé seul, sans parcourir récursivement ses sous-dossiers.
+3. Choisir **Nouveaux emails seulement** (reçus après le clic sur Démarrer) ou
+   **Depuis une date** (minuit, heure locale du PC Outlook).
+4. Démarrer la surveillance. Elle vérifie toutes les 30 secondes par défaut et
+   continue après la collecte de l'historique. Elle peut fonctionner en parallèle
+   des autres fonctionnalités, même si la page web est fermée.
+
+Les sujets doivent contenir `Activation commande FTTH`, `Creation CD FTTH`,
+`CREATION GPON`, `commandes GPON` ou `Activation Mise en`. La comparaison ignore
+la casse, les accents et les espaces supplémentaires.
+
+Les variantes de colonnes des trois exemples sont reconnues. `MSAN / SRO`,
+`MSAN` et `ODF` alimentent la colonne finale **ODF**. Si MSAN et ODF sont tous
+deux renseignés dans un email, leurs valeurs sont conservées et séparées par
+` | `. Les colonnes absentes restent vides et les colonnes supplémentaires sont
+conservées dans **Autres colonnes**. Les références `DFOI…`, les brins et les
+numéros ONT restent du texte. Date, expéditeur, sujet et dossier sont ajoutés
+pour retrouver l'email source.
+
+Les données et identifiants des messages traités sont enregistrés dans
+`data/outlook/outlook.sqlite3` afin qu'une nouvelle lecture du même email ne
+duplique pas ses lignes, même après redémarrage. Un nouvel email peut contenir
+une commande déjà reçue : il est conservé comme un nouveau message. Un email
+sans tableau reconnu est signalé dans le journal et compté séparément.
+
+Le fichier `data/outlook/collecte_outlook.xlsx` est actualisé automatiquement.
+Le téléchargement reconstruit toujours l'Excel complet à partir des données
+sauvegardées. Si le fichier automatique est ouvert dans Excel, sa mise à jour
+est réessayée à la prochaine vérification sans perdre les données collectées.
+Ces fichiers contiennent des données client et restent exclus de Git.
+
+Après arrêt du serveur, relancer la surveillance manuellement ; **Depuis une
+date** permet de récupérer les emails arrivés pendant l'arrêt. Cette fonction
+COM n'est pas disponible dans Docker/Linux. Le lanceur principal installe
+`pywin32` au besoin ; pour le projet seul, relancer `install.bat` après mise à
+jour. Les filtres Outlook comparent les dates en UTC, conformément à la
+[documentation Microsoft sur les filtres de date](https://learn.microsoft.com/en-us/office/vba/outlook/how-to/search-and-filter/filtering-items-using-a-date-time-comparison).
+
+### Paramètres des collectes existantes
+
 Dans l'onglet **Configuration**, vérifier :
 
 - l'URL Mutation GPON ;

@@ -40,6 +40,8 @@ from result_excel import (
     renseigner_results_excel,
 )
 from renseigner import run_renseigner
+from outlook_collector import OutlookCollector
+from outlook_store import OutlookStore
 from wimtech_assigner import assign_login_to_first_port
 from wimtech_bulk_mutator import mutate_bulk_rows
 from wimtech_checker import (
@@ -55,6 +57,8 @@ BULK_RESULTS_DIR = BASE_DIR / "data" / "bulk_results"
 MSAN_MAPPING_PATH = BASE_DIR / "data" / "msan_spl_mapping.json"
 DEGROUPAGE_PATH = BASE_DIR / "data" / "degroupage_lookup.json"
 JOB_STORE = JobStore(BASE_DIR / "data" / "jobs.sqlite3", max_jobs=20)
+OUTLOOK_STORE = OutlookStore(BASE_DIR / "data" / "outlook")
+OUTLOOK_COLLECTOR = OutlookCollector(OUTLOOK_STORE)
 
 app = Flask(__name__)
 app.config["MAX_CONTENT_LENGTH"] = 15 * 1024 * 1024
@@ -809,6 +813,36 @@ def generate_pcos():
 def get_config():
     config = load_config(); config.pop("wiam_password", None)
     return jsonify(ok=True, config=config)
+
+
+@app.get("/api/outlook")
+def outlook_status():
+    return jsonify(ok=True, collection=OUTLOOK_COLLECTOR.status())
+
+
+@app.post("/api/outlook/start")
+def start_outlook():
+    try:
+        OUTLOOK_COLLECTOR.start(request.get_json(silent=True) or {})
+    except ValueError as exc:
+        return jsonify(ok=False, error=str(exc)), 400
+    return jsonify(ok=True, collection=OUTLOOK_COLLECTOR.status())
+
+
+@app.post("/api/outlook/stop")
+def stop_outlook():
+    OUTLOOK_COLLECTOR.stop()
+    return jsonify(ok=True, collection=OUTLOOK_COLLECTOR.status())
+
+
+@app.get("/api/outlook/result.xlsx")
+def download_outlook():
+    # Generate from durable rows, even if the automatic file is open in Excel.
+    return send_file(
+        io.BytesIO(OUTLOOK_STORE.excel_bytes()), as_attachment=True,
+        download_name="collecte_outlook.xlsx",
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
 
 
 @app.post("/api/commandes/start")
