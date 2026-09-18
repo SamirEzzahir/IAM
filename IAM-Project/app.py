@@ -845,6 +845,17 @@ def download_outlook():
     )
 
 
+@app.post("/api/outlook/reset")
+def reset_outlook():
+    try:
+        OUTLOOK_COLLECTOR.reset()
+    except ValueError as exc:
+        return jsonify(ok=False, error=str(exc)), 409
+    except OSError:
+        return jsonify(ok=False, error="Fermez collecte_outlook.xlsx dans Excel puis réessayez. Les données ont été conservées."), 409
+    return jsonify(ok=True, collection=OUTLOOK_COLLECTOR.status())
+
+
 @app.post("/api/commandes/start")
 def start_commandes_collection():
     payload = request.get_json(silent=True) or {}

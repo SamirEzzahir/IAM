@@ -34,8 +34,8 @@ def normalized(value: str) -> str:
     return "".join(c for c in value if not unicodedata.combining(c))
 
 
-def matches_subject(subject: str) -> bool:
-    return any(normalized(fragment) in normalized(subject) for fragment in SUBJECTS)
+def matches_subject(subject: str, subjects=None) -> bool:
+    return any(normalized(fragment) in normalized(subject) for fragment in (SUBJECTS if subjects is None else subjects) if clean(fragment))
 
 
 def header_key(value: str) -> str:

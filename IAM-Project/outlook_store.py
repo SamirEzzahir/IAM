@@ -90,10 +90,17 @@ class OutlookStore:
     def excel_bytes(self) -> bytes:
         with self.lock, closing(self.connect()) as db:
             rows = db.execute("SELECT payload FROM extracted_rows ORDER BY id").fetchall()
+        return self.render_excel(rows)
+
+    @staticmethod
+    def render_excel(rows) -> bytes:
         book = Workbook()
         sheet = book.active
         sheet.title = "Collecte Outlook"
-        columns = (*COLUMNS, *META_COLUMNS)
+        columns = (
+            *(column for column in COLUMNS if column[0] not in {"longueur", "msan"}),
+            *META_COLUMNS, ("longueur", "Longueur"), ("msan", "MSAN"),
+        )
         sheet.append([label for _key, label in columns])
         for row_index, item in enumerate(rows, 2):
             row = json.loads(item[0])
@@ -110,6 +117,17 @@ class OutlookStore:
         output = io.BytesIO()
         book.save(output)
         return output.getvalue()
+
+    def reset(self) -> None:
+        """Clear collected data and dedup history, preserving saved settings."""
+        blank = self.render_excel([])
+        with self.lock, closing(self.connect()) as db, db:
+            db.execute("DELETE FROM extracted_rows")
+            db.execute("DELETE FROM messages")
+            # If Excel holds the file open, roll back the database reset too.
+            temporary = self.excel_path.with_suffix(".tmp")
+            temporary.write_bytes(blank)
+            temporary.replace(self.excel_path)
 
     def write_excel(self) -> None:
         content = self.excel_bytes()

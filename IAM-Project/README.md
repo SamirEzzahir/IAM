@@ -288,13 +288,32 @@ les pièces jointes et ne modifie ni les messages ni leur état lu/non lu.
    continue après la collecte de l'historique. Elle peut fonctionner en parallèle
    des autres fonctionnalités, même si la page web est fermée.
 
-Les sujets doivent contenir `Activation commande FTTH`, `Creation CD FTTH`,
-`CREATION GPON`, `commandes GPON` ou `Activation Mise en`. La comparaison ignore
-la casse, les accents et les espaces supplémentaires.
+Les expressions de sujet sont modifiables sous forme de tags : saisir une
+expression puis appuyer sur **Entrée** ou **Ajouter** ; **×** retire un tag.
+Les cinq expressions initiales sont préremplies et peuvent être remplacées.
+Au moins un tag de sujet est obligatoire. Un email doit contenir une de ces
+expressions ; la comparaison ignore casse, accents et espaces supplémentaires.
+
+Le champ **Expéditeurs autorisés** accepte également des tags d'adresses email
+complètes. Vide = tous les expéditeurs. Si renseigné, le sujet **et** l'adresse
+exacte de l'expéditeur doivent correspondre (adresse insensible à la casse).
+Les adresses internes Exchange sont résolues en SMTP via le carnet d'adresses,
+selon la [méthode Microsoft](https://learn.microsoft.com/en-us/office/client-developer/outlook/pia/how-to-get-the-smtp-address-of-the-sender-of-a-mail-item).
+Les filtres sont sauvegardés au démarrage et restaurés au rechargement.
+Arrêter la surveillance pour les modifier ; ils ne suppriment pas rétroactivement
+les lignes déjà collectées.
+
+Le bouton **Effacer et repartir de zéro**, disponible après arrêt de la
+surveillance, vide les lignes, l'Excel et l'historique local des messages traités
+après confirmation. Les filtres et emails Outlook sont conservés. Pour recollecter
+l'historique avec les nouveaux filtres, choisir **Depuis une date** après la remise
+à zéro. Si l'Excel est ouvert et bloque le fichier, la remise à zéro est annulée
+et les données sont conservées.
 
 Les variantes de colonnes des trois exemples sont reconnues. `MSAN / SRO` et
 `ODF` alimentent la colonne **ODF**. `MSAN` et `MSAN OLT` alimentent la colonne
-**MSAN**, placée juste après Longueur dans le tableau et l'Excel. Les deux valeurs
+**MSAN**. **Longueur puis MSAN** sont les deux dernières colonnes du tableau et
+de l'Excel ; les informations de réception sont placées avant elles. Les deux valeurs
 restent séparées si elles figurent dans le même email.
 Les colonnes absentes restent vides et les colonnes supplémentaires sont
 conservées dans **Autres colonnes**. Les références `DFOI…`, les brins et les

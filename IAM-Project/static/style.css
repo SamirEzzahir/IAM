@@ -148,6 +148,11 @@ tbody tr:hover { background: #fff4f4; }
 .top-gap { margin-top: 16px; }
 .config-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 22px; }
 .config-grid .full { grid-column: 1 / -1; }
+.outlook-tags { display: flex; flex-wrap: wrap; gap: 8px; }
+.outlook-tag { display: inline-flex; align-items: center; gap: 8px; max-width: 100%; padding: 6px 10px; border: 1px solid #e7b9bf; border-radius: 16px; background: #fff5f5; color: #812032; font-size: 12px; overflow-wrap: anywhere; }
+.outlook-tag button { border: 0; background: transparent; color: inherit; padding: 2px 5px; cursor: pointer; font-size: 16px; }
+.outlook-tag-entry { display: flex; flex-wrap: wrap; gap: 8px; }
+.outlook-tag-entry input { flex: 1; min-width: 180px; }
 .check-row { display: flex; grid-column: 1 / -1; align-items: center; gap: 9px; color: #495057; font-size: 12px; font-weight: 650; }
 .check-row input { width: auto; accent-color: var(--red); }
 .footer { padding: 22px 0 2px; color: #9aa0a6; font-size: 11px; text-align: center; }

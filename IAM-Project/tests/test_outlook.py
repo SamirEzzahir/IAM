@@ -12,7 +12,7 @@ from unittest.mock import Mock, patch
 from openpyxl import load_workbook
 
 import app
-from outlook_collector import OutlookCollector, resolve_folder, validate_options
+from outlook_collector import OutlookCollector, resolve_folder, sender_smtp_address, validate_options
 from outlook_store import OutlookStore
 from outlook_tables import extract_rows, matches_subject
 
@@ -113,6 +113,40 @@ class TableTests(unittest.TestCase):
 
 
 class StoreTests(unittest.TestCase):
+    def test_reset_clears_rows_excel_and_dedup_but_preserves_filters(self):
+        with tempfile.TemporaryDirectory() as directory:
+            store = OutlookStore(Path(directory))
+            settings = validate_options({"subjects": ["Activation FTTH"], "senders": ["agent@example.invalid"]})
+            store.save_settings(settings)
+            store.record("mail1", {}, extract_rows(table(HEADERS, ROW)))
+            store.write_excel()
+            collector = OutlookCollector(store)
+            collector.log("INFO", "Previous activity")
+            collector.reset()
+            self.assertFalse(store.seen("mail1"))
+            summary = collector.status()
+            self.assertEqual((summary["emails"], summary["total"], summary["skipped"]), (0, 0, 0))
+            self.assertEqual(summary["logs"], [])
+            self.assertEqual(summary["settings"], settings)
+            book = load_workbook(io.BytesIO(store.excel_path.read_bytes()))
+            self.assertEqual(book.active.max_row, 1)
+            self.assertEqual([cell.value for cell in book.active[1]][-2:], ["Longueur", "MSAN"])
+            book.close()
+            self.assertTrue(store.record("mail1", {}, extract_rows(table(HEADERS, ROW))))
+
+    def test_reset_rolls_back_if_excel_file_is_locked(self):
+        with tempfile.TemporaryDirectory() as directory:
+            store = OutlookStore(Path(directory))
+            store.record("mail1", {}, extract_rows(table(HEADERS, ROW)))
+            store.write_excel()
+            original_excel = store.excel_path.read_bytes()
+            with patch.object(Path, "replace", side_effect=PermissionError("locked")):
+                with self.assertRaises(PermissionError):
+                    store.reset()
+            self.assertEqual(store.summary()["total"], 1)
+            self.assertTrue(store.seen("mail1"))
+            self.assertEqual(store.excel_path.read_bytes(), original_excel)
+
     def test_legacy_rows_are_reparsed_without_duplicates_or_data_loss(self):
         with tempfile.TemporaryDirectory() as directory:
             store = OutlookStore(Path(directory))
@@ -161,6 +195,7 @@ class StoreTests(unittest.TestCase):
             headings = {cell.value: cell.column for cell in sheet[1]}
             self.assertIn("ODF", headings)
             self.assertEqual(headings["MSAN"], headings["Longueur"] + 1)
+            self.assertEqual(headings["MSAN"], sheet.max_column)
             self.assertEqual(sheet.cell(2, headings["Client"]).data_type, "s")
             self.assertEqual(sheet.cell(2, headings["ONT"]).value, "000123")
             self.assertEqual(sheet.max_row, 2)
@@ -175,6 +210,71 @@ class StoreTests(unittest.TestCase):
 
 
 class CollectionTests(unittest.TestCase):
+    def test_filter_validation_normalizes_tags_and_rejects_empty_subjects(self):
+        settings = validate_options({
+            "subjects": ["  Création   FTTH ", "creation ftth", "Autre sujet"],
+            "senders": ["Agent@EXAMPLE.invalid", "agent@example.invalid"],
+        })
+        self.assertEqual(settings["subjects"], ["Création FTTH", "Autre sujet"])
+        self.assertEqual(settings["senders"], ["agent@example.invalid"])
+        for payload in [{"subjects": []}, {"subjects": [""]}, {"subjects": "texte"},
+                        {"senders": ["un nom"]}, {"senders": ["@example.invalid"]}]:
+            with self.assertRaises(ValueError):
+                validate_options(payload)
+        self.assertTrue(matches_subject("RE: CREATION FTTH client", settings["subjects"]))
+        self.assertFalse(matches_subject("CREATION GPON", settings["subjects"]))
+
+    def test_resolves_smtp_address_for_exchange_sender(self):
+        sender = Mock()
+        sender.GetExchangeUser.return_value.PrimarySmtpAddress = "Agent@Example.invalid"
+        message = SimpleNamespace(SenderEmailAddress="/O=ORG/OU=USERS/CN=AGENT", Sender=sender)
+        self.assertEqual(sender_smtp_address(message), "agent@example.invalid")
+        sender.GetExchangeUser.side_effect = RuntimeError("not a user")
+        sender.GetExchangeDistributionList.side_effect = RuntimeError("not a list")
+        sender.PropertyAccessor.GetProperty.return_value = "Contact@example.invalid"
+        self.assertEqual(sender_smtp_address(message), "contact@example.invalid")
+
+    def test_custom_subject_and_sender_must_both_match_before_recording(self):
+        cutoff = datetime(2026, 1, 2, tzinfo=timezone.utc)
+        messages = []
+        for i, (subject, address) in enumerate([
+            ("RE: Livraison fibre", "AGENT@example.invalid"),
+            ("Livraison fibre", "other@example.invalid"),
+            ("CREATION GPON", "agent@example.invalid"),
+            ("Livraison fibre", "agent@example.invalid.evil"),
+        ]):
+            accessor = Mock()
+            accessor.GetProperty.return_value = f"message-{i}"
+            messages.append(SimpleNamespace(Class=43, Subject=subject,
+                ReceivedTime=cutoff + timedelta(hours=1), PropertyAccessor=accessor,
+                EntryID=f"entry-{i}", HTMLBody=table(HEADERS, ROW),
+                SenderEmailAddress=address, SenderName="Test"))
+        items = Mock()
+        items.Count = len(messages)
+        items.Item.side_effect = lambda index: messages[index - 1]
+        folder = Mock(StoreID="store", FolderPath="Inbox")
+        folder.Items.Restrict.return_value = items
+        with tempfile.TemporaryDirectory() as directory:
+            collector = OutlookCollector(OutlookStore(Path(directory)))
+            collector.subjects = ["Livraison fibre"]
+            collector.senders = ["agent@example.invalid"]
+            self.assertEqual(collector.scan(folder, cutoff), 1)
+            self.assertEqual(collector.scan(folder, cutoff), 0)
+            self.assertEqual(collector.status()["emails"], 1)
+            # Previously excluded emails can be collected after widening filters.
+            collector.senders = []
+            self.assertEqual(collector.scan(folder, cutoff), 2)
+
+    def test_reset_is_blocked_during_active_monitoring(self):
+        with tempfile.TemporaryDirectory() as directory:
+            collector = OutlookCollector(OutlookStore(Path(directory)))
+            collector.thread = Mock()
+            collector.thread.is_alive.return_value = True
+            with patch.object(collector.store, "reset") as reset:
+                with self.assertRaisesRegex(ValueError, "Arrêtez"):
+                    collector.reset()
+                reset.assert_not_called()
+
     def test_worker_starts_once_stops_and_releases_com_on_its_thread(self):
         pythoncom = ModuleType("pythoncom")
         pythoncom.CoInitialize = Mock()
@@ -317,6 +417,11 @@ class CollectionTests(unittest.TestCase):
                 client = app.app.test_client()
                 self.assertEqual(client.get("/api/outlook").status_code, 200)
                 self.assertEqual(client.post("/api/outlook/start", json={}).status_code, 403)
+                self.assertEqual(client.post("/api/outlook/reset", json={}).status_code, 403)
+                store.record("email-to-reset", {}, extract_rows(table(HEADERS, ROW)))
+                cleared = client.post("/api/outlook/reset", headers={"X-Requested-With": "FB-EMM"})
+                self.assertEqual(cleared.status_code, 200)
+                self.assertEqual(cleared.get_json()["collection"]["total"], 0)
                 response = client.get("/api/outlook/result.xlsx")
                 self.assertEqual(response.status_code, 200)
                 book = load_workbook(io.BytesIO(response.data))

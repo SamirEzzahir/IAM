@@ -4,11 +4,57 @@ from __future__ import annotations
 
 import copy
 import hashlib
+import re
 import sys
 from datetime import date, datetime, timezone
 from threading import Event, Lock, Thread
 
-from outlook_tables import SUBJECTS, extract_rows, matches_subject
+from outlook_tables import SUBJECTS, clean, normalized, extract_rows, matches_subject
+
+
+def validate_tags(values, *, emails=False):
+    if not isinstance(values, list) or len(values) > 100:
+        raise ValueError("Les filtres doivent contenir au maximum 100 tags.")
+    result, seen = [], set()
+    for value in values:
+        if not isinstance(value, str) or not clean(value) or len(value) > 254:
+            raise ValueError("Chaque tag doit contenir entre 1 et 254 caractères.")
+        value = clean(value)
+        if emails:
+            value = value.casefold()
+            if not re.fullmatch(r"[^\s@<>;,]+@[^\s@<>;,]+\.[^\s@<>;,]+", value):
+                raise ValueError("Indiquez une adresse email complète pour chaque expéditeur.")
+        key = value if emails else normalized(value)
+        if key not in seen:
+            result.append(value)
+            seen.add(key)
+    return result
+
+
+def sender_smtp_address(message) -> str:
+    """Resolve actual SMTP addresses, including internal Exchange senders."""
+    try:
+        address = str(message.SenderEmailAddress or "").strip()
+        if "@" in address:
+            return address.casefold()
+    except Exception:
+        pass
+    try:
+        sender = message.Sender
+    except Exception:
+        return ""
+    for get_address in (
+        lambda: sender.GetExchangeUser().PrimarySmtpAddress,
+        lambda: sender.GetExchangeDistributionList().PrimarySmtpAddress,
+        lambda: sender.PropertyAccessor.GetProperty("http://schemas.microsoft.com/mapi/proptag/0x39FE001E"),
+    ):
+        try:
+            address = str(get_address() or "").strip()
+            if "@" in address:
+                return address.casefold()
+        except Exception:
+            continue
+    return ""
 
 
 def validate_options(payload: dict) -> dict:
@@ -34,7 +80,12 @@ def validate_options(payload: dict) -> dict:
         raise ValueError("L’intervalle doit être un nombre de secondes.") from exc
     if not 10 <= interval <= 3600:
         raise ValueError("L’intervalle doit être compris entre 10 et 3600 secondes.")
-    return {"folder": folder, "mode": mode, "since": since, "interval": interval}
+    subjects = validate_tags(payload.get("subjects", list(SUBJECTS)))
+    if not subjects:
+        raise ValueError("Ajoutez au moins un sujet avant de démarrer la surveillance.")
+    senders = validate_tags(payload.get("senders", []), emails=True)
+    return {"folder": folder, "mode": mode, "since": since, "interval": interval,
+            "subjects": subjects, "senders": senders}
 
 
 def resolve_folder(namespace, path: str):
@@ -95,6 +146,8 @@ class OutlookCollector:
         self.lock = Lock()
         self.stop_event = Event()
         self.thread = None
+        self.subjects = list(SUBJECTS)
+        self.senders = []
         self.state = {"status": "STOPPED", "error": None, "last_scan": None,
                       "started_at": None, "logs": [], "folder_label": "", "export_error": None}
 
@@ -130,6 +183,8 @@ class OutlookCollector:
             # Date-only inputs mean midnight in the Outlook PC's local timezone.
             cutoff = datetime.fromisoformat(options["since"]).astimezone(timezone.utc) if options["mode"] == "since" else now
             self.store.save_settings(options)
+            self.subjects = options["subjects"]
+            self.senders = options["senders"]
             self.stop_event = Event()
             self.state.update(status="STARTING", error=None, last_scan=None,
                               started_at=now.isoformat(), folder_label="", export_error=None, logs=[])
@@ -141,6 +196,14 @@ class OutlookCollector:
             if self.thread is not None and self.thread.is_alive():
                 self.state["status"] = "STOPPING"
                 self.stop_event.set()
+
+    def reset(self):
+        with self.lock:
+            if self.thread is not None and self.thread.is_alive():
+                raise ValueError("Arrêtez la surveillance avant d’effacer la collecte.")
+            self.store.reset()
+            self.state.update(status="STOPPED", error=None, last_scan=None,
+                              started_at=None, folder_label="", export_error=None, logs=[])
 
     def scan(self, folder, cutoff: datetime) -> int:
         # DASL date comparisons use UTC. Restrict reduces COM traffic on large inboxes.
@@ -156,13 +219,16 @@ class OutlookCollector:
                 if message.Class != 43:
                     continue
                 subject = str(message.Subject or "")
-                if not matches_subject(subject) or utc_received(message.ReceivedTime) < cutoff:
+                if not matches_subject(subject, self.subjects) or utc_received(message.ReceivedTime) < cutoff:
+                    continue
+                sender = sender_smtp_address(message)
+                if self.senders and sender not in self.senders:
                     continue
                 key = message_identity(message, str(folder.StoreID))
                 if self.store.seen(key):
                     continue
                 rows = extract_rows(str(message.HTMLBody or ""))
-                metadata = {"subject": subject, "sender": str(message.SenderEmailAddress or message.SenderName or ""),
+                metadata = {"subject": subject, "sender": sender or str(message.SenderName or ""),
                             "received": utc_received(message.ReceivedTime).isoformat(),
                             "folder": str(folder.FolderPath)}
                 if self.store.record(key, metadata, rows):
