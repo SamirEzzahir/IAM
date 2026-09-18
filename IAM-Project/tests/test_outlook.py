@@ -160,7 +160,7 @@ class StoreTests(unittest.TestCase):
             sheet = book.active
             headings = {cell.value: cell.column for cell in sheet[1]}
             self.assertIn("ODF", headings)
-            self.assertEqual(headings["ODF"], headings["MSAN"] + 1)
+            self.assertEqual(headings["MSAN"], headings["Longueur"] + 1)
             self.assertEqual(sheet.cell(2, headings["Client"]).data_type, "s")
             self.assertEqual(sheet.cell(2, headings["ONT"]).value, "000123")
             self.assertEqual(sheet.max_row, 2)

@@ -294,7 +294,7 @@ la casse, les accents et les espaces supplémentaires.
 
 Les variantes de colonnes des trois exemples sont reconnues. `MSAN / SRO` et
 `ODF` alimentent la colonne **ODF**. `MSAN` et `MSAN OLT` alimentent la colonne
-**MSAN**, placée juste avant ODF dans le tableau et l'Excel. Les deux valeurs
+**MSAN**, placée juste après Longueur dans le tableau et l'Excel. Les deux valeurs
 restent séparées si elles figurent dans le même email.
 Les colonnes absentes restent vides et les colonnes supplémentaires sont
 conservées dans **Autres colonnes**. Les références `DFOI…`, les brins et les

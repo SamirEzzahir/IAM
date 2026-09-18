@@ -35,8 +35,8 @@ function renderOutlook(data) {
   $("outlookLastScan").textContent = `Dernière vérification : ${formatDate(data.last_scan)}${data.folder_label ? " · " + data.folder_label : ""}`;
   $("outlookMessage").innerHTML = [data.error, data.export_error].filter(Boolean).map(message => `<div class="warning">${escapeHtml(message)}</div>`).join("");
   renderPaginatedTable("outlook", "outlookResultsBody", data.rows || [], row =>
-    `<tr>${[row.commande, row.ont, row.client, row.login, row.msan, row.odf, row.pco, row.brin, row.gps_pco, formatDate(row.received), row.subject].map(value => `<td>${escapeHtml(value || "—")}</td>`).join("")}</tr>`,
-    '<tr><td colspan="11" class="empty">Aucune ligne collectée.</td></tr>');
+    `<tr>${[row.commande, row.ont, row.version, row.technologie, row.client, row.login, row.odf, row.pco, row.brin, row.type_pco, row.pose_pco, row.pose_splitter, row.gps_pco, row.gps_splitter, row.longueur, row.msan, formatDate(row.received), row.subject].map(value => `<td>${escapeHtml(value || "—")}</td>`).join("")}</tr>`,
+    '<tr><td colspan="18" class="empty">Aucune ligne collectée.</td></tr>');
   $("outlookLog").innerHTML = (data.logs || []).map(line => `<div class="log-line ${escapeHtml(line.level.toLowerCase())}"><time>${escapeHtml(formatTime(line.time))}</time><span>${escapeHtml(line.message)}</span></div>`).join("");
 }
 

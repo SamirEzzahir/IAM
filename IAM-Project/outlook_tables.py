@@ -17,11 +17,11 @@ PARSER_VERSION = 2
 COLUMNS = (
     ("commande", "Commande"), ("ont", "ONT"), ("version", "Version"),
     ("technologie", "Technologie"), ("client", "Client"), ("login", "Login"),
-    ("msan", "MSAN"), ("odf", "ODF"), ("pco", "PCO"), ("brin", "Brin"),
+    ("odf", "ODF"), ("pco", "PCO"), ("brin", "Brin"),
     ("type_pco", "Type PCO"), ("pose_pco", "Pose PCO"),
     ("pose_splitter", "Pose nouveau splitter"), ("gps_pco", "GPS PCO"),
     ("gps_splitter", "GPS nouveau splitter"), ("longueur", "Longueur"),
-    ("autres", "Autres colonnes"),
+    ("msan", "MSAN"), ("autres", "Autres colonnes"),
 )
 
 
