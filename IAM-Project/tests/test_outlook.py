@@ -31,6 +31,13 @@ ROW = ["101000001 -- RECGPON", "ONT0001", "Autre", "HUAWEI", "Client exemple",
        "client.test", "GHI-FF-EXEMPLE", "5121/1", "2", "Façade", "N", "N",
        "34.0315747,-5.0644695", "N", "73M"]
 
+EXPORT_HEADERS = [
+    "Commande", "ONT", "Version", "Technologie", "Client", "Login", "ODF",
+    "PCO", "Brin", "Type PCO", "Pose PCO", "Pose nouveau splitter", "GPS PCO",
+    "GPS nouveau splitter", "Longueur", "MSAN", "Autres colonnes",
+    "Date réception", "Expéditeur", "Sujet", "Dossier Outlook",
+]
+
 
 def mailbox_tree():
     def folder(name, children=None):
@@ -130,7 +137,7 @@ class StoreTests(unittest.TestCase):
             self.assertEqual(summary["settings"], settings)
             book = load_workbook(io.BytesIO(store.excel_path.read_bytes()))
             self.assertEqual(book.active.max_row, 1)
-            self.assertEqual([cell.value for cell in book.active[1]][-2:], ["Longueur", "MSAN"])
+            self.assertEqual([cell.value for cell in book.active[1]], EXPORT_HEADERS)
             book.close()
             self.assertTrue(store.record("mail1", {}, extract_rows(table(HEADERS, ROW))))
 
@@ -195,7 +202,7 @@ class StoreTests(unittest.TestCase):
             headings = {cell.value: cell.column for cell in sheet[1]}
             self.assertIn("ODF", headings)
             self.assertEqual(headings["MSAN"], headings["Longueur"] + 1)
-            self.assertEqual(headings["MSAN"], sheet.max_column)
+            self.assertEqual([cell.value for cell in sheet[1]], EXPORT_HEADERS)
             self.assertEqual(sheet.cell(2, headings["Client"]).data_type, "s")
             self.assertEqual(sheet.cell(2, headings["ONT"]).value, "000123")
             self.assertEqual(sheet.max_row, 2)

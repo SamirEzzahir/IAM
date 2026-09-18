@@ -312,8 +312,9 @@ et les données sont conservées.
 
 Les variantes de colonnes des trois exemples sont reconnues. `MSAN / SRO` et
 `ODF` alimentent la colonne **ODF**. `MSAN` et `MSAN OLT` alimentent la colonne
-**MSAN**. **Longueur puis MSAN** sont les deux dernières colonnes du tableau et
-de l'Excel ; les informations de réception sont placées avant elles. Les deux valeurs
+**MSAN**. Dans le tableau et l'Excel, **Longueur puis MSAN** suivent GPS nouveau
+splitter, puis viennent **Autres colonnes, Date réception, Expéditeur, Sujet,
+Dossier Outlook**. Les deux valeurs
 restent séparées si elles figurent dans le même email.
 Les colonnes absentes restent vides et les colonnes supplémentaires sont
 conservées dans **Autres colonnes**. Les références `DFOI…`, les brins et les

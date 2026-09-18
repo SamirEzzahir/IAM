@@ -97,10 +97,7 @@ class OutlookStore:
         book = Workbook()
         sheet = book.active
         sheet.title = "Collecte Outlook"
-        columns = (
-            *(column for column in COLUMNS if column[0] not in {"longueur", "msan"}),
-            *META_COLUMNS, ("longueur", "Longueur"), ("msan", "MSAN"),
-        )
+        columns = (*COLUMNS, *META_COLUMNS)
         sheet.append([label for _key, label in columns])
         for row_index, item in enumerate(rows, 2):
             row = json.loads(item[0])
