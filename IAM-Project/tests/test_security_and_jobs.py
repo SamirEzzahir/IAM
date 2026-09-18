@@ -3,7 +3,7 @@ import tempfile
 import unittest
 from pathlib import Path
 from threading import Event
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 import app
 from job_store import JobStore
@@ -64,7 +64,7 @@ class JobLifecycleTests(unittest.TestCase):
                     event.set()
             app.jobs.clear()
 
-    def test_only_one_selenium_job_can_run(self):
+    def test_only_one_job_per_feature_can_run(self):
         entered = Event()
         release = Event()
 
@@ -93,6 +93,39 @@ class JobLifecycleTests(unittest.TestCase):
             with app.jobs_lock:
                 thread = next(iter(app.jobs.values()))["thread"]
             thread.join(2)
+
+    def test_different_features_can_run_at_the_same_time(self):
+        with app.jobs_lock:
+            app.jobs["renseigner-running"] = {
+                "job_id": "renseigner-running",
+                "kind": "RENSEIGNER",
+                "status": "RUNNING",
+            }
+
+        fake_thread = Mock()
+        config = {"wiam_username": "user", "wiam_password": "password"}
+        with patch.object(app, "load_config", return_value=config), \
+                patch.object(app, "Thread", return_value=fake_thread):
+            response = app.app.test_client().post(
+                "/api/commandes/start",
+                json={"commands": "100123456"},
+                headers={"X-Requested-With": "FB-EMM"},
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.get_json()["job"]["kind"], "COMMANDES")
+        fake_thread.start.assert_called_once()
+
+    def test_assignment_modes_share_one_feature_lock(self):
+        with app.jobs_lock:
+            app.jobs["assignment-running"] = {
+                "job_id": "assignment-running",
+                "kind": "BATCH_ASSIGNMENT",
+                "status": "RUNNING",
+            }
+            active = app.active_job_for("ASSIGNMENT")
+
+        self.assertEqual(active["job_id"], "assignment-running")
 
     def test_confirmed_assignment_runs_complete_availability_scan(self):
         parsed = parse_spl("OFOF-ZO-111.1")

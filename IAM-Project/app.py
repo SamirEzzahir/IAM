@@ -60,6 +60,37 @@ app = Flask(__name__)
 app.config["MAX_CONTENT_LENGTH"] = 15 * 1024 * 1024
 jobs: dict[str, dict] = {}
 jobs_lock = Lock()
+available_results_lock = Lock()
+ACTIVE_JOB_STATUSES = {"QUEUED", "RUNNING", "PAUSED", "STOPPING"}
+JOB_FEATURE_GROUPS = {
+    "ASSIGNMENT": "ASSIGNMENT",
+    "BATCH_ASSIGNMENT": "ASSIGNMENT",
+}
+
+
+def job_feature(kind: str | None) -> str:
+    """Return the UI feature owning a job kind."""
+
+    normalized = str(kind or "").upper()
+    return JOB_FEATURE_GROUPS.get(normalized, normalized)
+
+
+def active_job_for(feature_kind: str) -> dict | None:
+    """Find an active job for one feature.
+
+    Callers hold ``jobs_lock`` so checking and registering a job stays atomic.
+    Different features are intentionally allowed to run concurrently.
+    """
+
+    feature = job_feature(feature_kind)
+    return next(
+        (
+            value for value in jobs.values()
+            if value.get("status") in ACTIVE_JOB_STATUSES
+            and job_feature(value.get("kind")) == feature
+        ),
+        None,
+    )
 
 
 def authentication_enabled() -> bool:
@@ -250,13 +281,14 @@ def persist_available(job_id: str) -> None:
         "saved_at": utc_now(),
         "available_pcos": snapshot["available_pcos"],
     }
-    LATEST_RESULTS_PATH.parent.mkdir(parents=True, exist_ok=True)
-    temporary = LATEST_RESULTS_PATH.with_suffix(".tmp")
-    temporary.write_text(
-        json.dumps(payload, indent=2, ensure_ascii=False),
-        encoding="utf-8",
-    )
-    temporary.replace(LATEST_RESULTS_PATH)
+    with available_results_lock:
+        LATEST_RESULTS_PATH.parent.mkdir(parents=True, exist_ok=True)
+        temporary = LATEST_RESULTS_PATH.with_suffix(".tmp")
+        temporary.write_text(
+            json.dumps(payload, indent=2, ensure_ascii=False),
+            encoding="utf-8",
+        )
+        temporary.replace(LATEST_RESULTS_PATH)
 
 
 def run_job(job_id: str) -> None:
@@ -796,12 +828,9 @@ def start_commandes_collection():
     if not all(config.get(key) for key in ("wiam_username", "wiam_password")):
         return jsonify(ok=False, error="Configurez le Login et le mot de passe WIAM."), 400
     with jobs_lock:
-        active = next(
-            (value for value in jobs.values() if value["status"] in {"QUEUED", "RUNNING", "PAUSED", "STOPPING"}),
-            None,
-        )
+        active = active_job_for("COMMANDES")
         if active:
-            return jsonify(ok=False, error="Une automatisation Selenium est déjà en cours.", job_id=active["job_id"]), 409
+            return jsonify(ok=False, error="Une collecte ConnectFlow est déjà en cours.", job_id=active["job_id"]), 409
         job_id, now = uuid4().hex, utc_now()
         rows = [{"excel_row": index, "cmd": item} for index, item in enumerate(commands, 1)]
         pending = [
@@ -896,9 +925,9 @@ def start_renseigner():
     if len(values) > 2000:
         return jsonify(ok=False, error="La liste dépasse 2000 lignes."), 400
     with jobs_lock:
-        active = next((value for value in jobs.values() if value["status"] in {"QUEUED", "RUNNING", "PAUSED", "STOPPING"}), None)
+        active = active_job_for("RENSEIGNER")
         if active:
-            return jsonify(ok=False, error="Une automatisation Selenium est déjà en cours.", job_id=active["job_id"]), 409
+            return jsonify(ok=False, error="Une collecte Renseigner PCOs est déjà en cours.", job_id=active["job_id"]), 409
         job_id, now = uuid4().hex, utc_now()
         rows = [{"excel_row": index, "input": item, "mode": mode} for index, item in enumerate(values, 1)]
         job = {"job_id": job_id, "kind": "RENSEIGNER", "renseigner_rows": rows, "status": "QUEUED", "created_at": now, "started_at": None, "finished_at": None, "updated_at": now, "error": None, "total": len(rows), "completed_count": 0, "results": [{**row, "login": "", "source": "", "constitution_search_mode": "", "constitution_spl": "", "constitution_pco": "", "constitution_brin": "", "msan_port": "", "status": "PENDING", "status_label": "En attente", "message": "En attente."} for row in rows], "logs": [], "run_event": Event(), "stop_event": Event(), "thread": None}
@@ -970,13 +999,7 @@ def start_check():
         return jsonify(ok=False, error=str(exc)), 400
 
     with jobs_lock:
-        active = next(
-            (
-                value for value in jobs.values()
-                if value["status"] in {"QUEUED", "RUNNING", "PAUSED", "STOPPING"}
-            ),
-            None,
-        )
+        active = active_job_for("CHECK")
         if active:
             return jsonify(
                 ok=False,
@@ -1041,17 +1064,11 @@ def start_assignment():
         return jsonify(ok=False, error=str(exc)), 400
 
     with jobs_lock:
-        active = next(
-            (
-                value for value in jobs.values()
-                if value["status"] in {"QUEUED", "RUNNING", "PAUSED", "STOPPING"}
-            ),
-            None,
-        )
+        active = active_job_for("ASSIGNMENT")
         if active:
             return jsonify(
                 ok=False,
-                error="Une automatisation Selenium est déjà en cours.",
+                error="Une affectation est déjà en cours.",
                 job_id=active["job_id"],
             ), 409
 
@@ -1112,9 +1129,9 @@ def start_batch_assignment():
     except (ValueError, RuntimeError) as exc:
         return jsonify(ok=False, error=str(exc)), 400
     with jobs_lock:
-        active = next((value for value in jobs.values() if value["status"] in {"QUEUED", "RUNNING", "PAUSED", "STOPPING"}), None)
+        active = active_job_for("BATCH_ASSIGNMENT")
         if active:
-            return jsonify(ok=False, error="Une automatisation Selenium est déjà en cours.", job_id=active["job_id"]), 409
+            return jsonify(ok=False, error="Une affectation est déjà en cours.", job_id=active["job_id"]), 409
         job_id, now = uuid4().hex, utc_now()
         job = {
             "job_id": job_id, "kind": "BATCH_ASSIGNMENT", "assignment_rows": rows,
@@ -1165,9 +1182,9 @@ def start_login_only_assignment():
         return jsonify(ok=False, error="La liste dépasse 2000 Logins."), 400
     rows = [{"excel_row": index, "login": login, "spl": "", "validation_error": None} for index, login in enumerate(logins, 1)]
     with jobs_lock:
-        active = next((value for value in jobs.values() if value["status"] in {"QUEUED", "RUNNING", "PAUSED", "STOPPING"}), None)
+        active = active_job_for("BATCH_ASSIGNMENT")
         if active:
-            return jsonify(ok=False, error="Une automatisation Selenium est déjà en cours.", job_id=active["job_id"]), 409
+            return jsonify(ok=False, error="Une affectation est déjà en cours.", job_id=active["job_id"]), 409
         job_id, now = uuid4().hex, utc_now()
         job = {
             "job_id": job_id, "kind": "BATCH_ASSIGNMENT", "assignment_rows": rows,
@@ -1238,17 +1255,11 @@ def start_bulk_mutation():
         return jsonify(ok=False, error=str(exc)), 400
 
     with jobs_lock:
-        active = next(
-            (
-                value for value in jobs.values()
-                if value["status"] in {"QUEUED", "RUNNING", "PAUSED", "STOPPING"}
-            ),
-            None,
-        )
+        active = active_job_for("BULK_MUTATION")
         if active:
             return jsonify(
                 ok=False,
-                error="Une automatisation Selenium est déjà en cours.",
+                error="Un Bulk Mutation est déjà en cours.",
                 job_id=active["job_id"],
             ), 409
 

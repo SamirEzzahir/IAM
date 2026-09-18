@@ -257,8 +257,10 @@ de confiance. Pour un environnement soumis à des exigences fortes, placer
 l'application derrière un proxy HTTPS géré par l'équipe informatique.
 
 Chrome et Selenium continuent de s'exécuter sur le poste qui a lancé
-`run-lan.bat`. Une seule automatisation peut s'exécuter à la fois pour tous
-les utilisateurs. Fermer la fenêtre du script arrête le service.
+`run-lan.bat`. Les fonctionnalités différentes peuvent s'exécuter en parallèle
+(par exemple Renseigner PCOs et ConnectFlow), chacune dans sa propre session
+Chrome. Un deuxième lancement de la même fonctionnalité reste bloqué jusqu'à la
+fin du premier. Fermer la fenêtre du script arrête le service.
 
 ## Configuration
 
