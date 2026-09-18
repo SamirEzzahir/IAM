@@ -32,6 +32,24 @@ ROW = ["101000001 -- RECGPON", "ONT0001", "Autre", "HUAWEI", "Client exemple",
        "34.0315747,-5.0644695", "N", "73M"]
 
 
+def mailbox_tree():
+    def folder(name, children=None):
+        return SimpleNamespace(
+            StoreID="store1", EntryID=name, FolderPath=name,
+            Folders=SimpleNamespace(Item=Mock(side_effect=(children or {}).__getitem__)),
+        )
+    ftth = folder("Archivage/FTTH")
+    archive = folder("Archivage", {"FTTH": ftth})
+    inbox = folder("Réception")
+    root = folder("Compte", {"Réception": inbox, "Archivage": archive})
+    inbox.Parent = root
+    namespace = SimpleNamespace(
+        GetDefaultFolder=Mock(return_value=inbox),
+        Folders=SimpleNamespace(Item=Mock(side_effect={"Compte": root}.__getitem__)),
+    )
+    return namespace, inbox, archive, ftth
+
+
 class TableTests(unittest.TestCase):
     def test_subjects_ignore_accents_case_and_extra_spaces(self):
         for subject in ["RE: ACTIVATION  commande FTTH client", "Création CD FTTH",
@@ -142,7 +160,7 @@ class StoreTests(unittest.TestCase):
             sheet = book.active
             headings = {cell.value: cell.column for cell in sheet[1]}
             self.assertIn("ODF", headings)
-            self.assertEqual(headings["MSAN"], headings["ODF"] + 1)
+            self.assertEqual(headings["ODF"], headings["MSAN"] + 1)
             self.assertEqual(sheet.cell(2, headings["Client"]).data_type, "s")
             self.assertEqual(sheet.cell(2, headings["ONT"]).value, "000123")
             self.assertEqual(sheet.max_row, 2)
@@ -206,6 +224,56 @@ class CollectionTests(unittest.TestCase):
         namespace.GetDefaultFolder.assert_called_with(6)
         inbox.Folders.Item.assert_called_with("FTTH")
         inbox.Folders.Item.return_value.Folders.Item.assert_called_with("Activations")
+
+    def test_archive_beside_inbox_and_full_mailbox_paths(self):
+        namespace, inbox, archive, ftth = mailbox_tree()
+        self.assertIs(resolve_folder(namespace, "Archivage"), archive)
+        self.assertIs(resolve_folder(namespace, "Archivage/FTTH"), ftth)
+        self.assertIs(resolve_folder(namespace, "Compte/Archivage"), archive)
+        self.assertIs(resolve_folder(namespace, "\\\\Compte\\Archivage"), archive)
+        self.assertIs(resolve_folder(namespace, "Compte/Réception"), inbox)
+        with self.assertRaisesRegex(ValueError, "Dossier Outlook introuvable"):
+            resolve_folder(namespace, "Absent")
+
+    def test_scan_watches_inbox_and_archive_without_scanning_subfolders(self):
+        namespace, inbox, archive, _ftth = mailbox_tree()
+        cutoff = datetime(2026, 1, 2, tzinfo=timezone.utc)
+        with tempfile.TemporaryDirectory() as directory:
+            collector = OutlookCollector(OutlookStore(Path(directory)))
+            with patch.object(collector, "scan", side_effect=[2, 3]) as scan:
+                self.assertEqual(collector.scan_folders(namespace, "Archivage", cutoff), 5)
+                self.assertEqual([call.args[0] for call in scan.call_args_list], [inbox, archive])
+            self.assertEqual(collector.status()["folder_label"], "Réception + Archivage")
+            self.assertIsNone(collector.status()["error"])
+
+    def test_invalid_extra_folder_does_not_stop_inbox(self):
+        namespace, inbox, _archive, _ftth = mailbox_tree()
+        cutoff = datetime(2026, 1, 2, tzinfo=timezone.utc)
+        with tempfile.TemporaryDirectory() as directory:
+            collector = OutlookCollector(OutlookStore(Path(directory)))
+            with patch.object(collector, "scan", return_value=1) as scan:
+                self.assertEqual(collector.scan_folders(namespace, "Absent", cutoff), 1)
+                scan.assert_called_once_with(inbox, cutoff)
+            self.assertIn("Dossier Outlook introuvable", collector.status()["error"])
+
+    def test_folder_failure_does_not_prevent_scanning_the_other_folder(self):
+        namespace, inbox, archive, _ftth = mailbox_tree()
+        cutoff = datetime(2026, 1, 2, tzinfo=timezone.utc)
+        with tempfile.TemporaryDirectory() as directory:
+            collector = OutlookCollector(OutlookStore(Path(directory)))
+            with patch.object(collector, "scan", side_effect=[RuntimeError("offline"), 1]) as scan:
+                self.assertEqual(collector.scan_folders(namespace, "Archivage", cutoff), 1)
+                self.assertEqual([call.args[0] for call in scan.call_args_list], [inbox, archive])
+            self.assertIn("Lecture impossible", collector.status()["error"])
+
+    def test_explicit_inbox_path_is_scanned_only_once(self):
+        namespace, inbox, _archive, _ftth = mailbox_tree()
+        cutoff = datetime(2026, 1, 2, tzinfo=timezone.utc)
+        with tempfile.TemporaryDirectory() as directory:
+            collector = OutlookCollector(OutlookStore(Path(directory)))
+            with patch.object(collector, "scan", return_value=1) as scan:
+                self.assertEqual(collector.scan_folders(namespace, "Compte/Réception", cutoff), 1)
+                scan.assert_called_once_with(inbox, cutoff)
 
     def test_scan_filters_dates_subjects_and_deduplicates(self):
         cutoff = datetime(2026, 1, 2, tzinfo=timezone.utc)

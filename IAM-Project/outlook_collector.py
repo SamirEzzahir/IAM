@@ -16,7 +16,7 @@ def validate_options(payload: dict) -> dict:
         raise ValueError("Configuration Outlook invalide.")
     folder = str(payload.get("folder", "")).strip().replace("\\", "/").strip("/")
     if len(folder) > 500 or (folder and any(part.strip() in {"", ".", ".."} for part in folder.split("/"))):
-        raise ValueError("Indiquez un sous-dossier, par exemple FTTH/Activations.")
+        raise ValueError("Indiquez un dossier, par exemple Archivage ou FTTH/Activations.")
     mode = str(payload.get("mode", "new"))
     if mode not in {"new", "since"}:
         raise ValueError("Choisissez les nouveaux emails ou une date de début.")
@@ -38,13 +38,36 @@ def validate_options(payload: dict) -> dict:
 
 
 def resolve_folder(namespace, path: str):
-    folder = namespace.GetDefaultFolder(6)
-    for part in filter(None, (value.strip() for value in path.split("/"))):
+    """Accept paths relative to Inbox, the mailbox root, or the Outlook profile."""
+    inbox = namespace.GetDefaultFolder(6)
+    parts = [value.strip() for value in path.replace("\\", "/").split("/") if value.strip()]
+    if not parts:
+        return inbox
+    # Existing Inbox-relative paths retain priority. A sibling like Archivage
+    # is under Inbox.Parent; a full mailbox/archive path starts at namespace.
+    roots = [inbox]
+    try:
+        roots.append(inbox.Parent)
+    except Exception:
+        pass
+    roots.append(namespace)
+    for root in roots:
+        folder = root
         try:
-            folder = folder.Folders.Item(part)
-        except Exception as exc:
-            raise ValueError(f"Sous-dossier Outlook introuvable : {part} (chemin : {path}).") from exc
-    return folder
+            for part in parts:
+                folder = folder.Folders.Item(part)
+            return folder
+        except Exception:
+            continue
+    raise ValueError(
+        f"Dossier Outlook introuvable : {path}. Utilisez son nom (Archivage), "
+        "un chemin (Archivage/FTTH), ou le chemin complet affiché dans Outlook "
+        "(Nom de la boîte/Archivage). La boîte de réception reste surveillée."
+    )
+
+
+def folder_identity(folder) -> tuple[str, str]:
+    return str(folder.StoreID), str(folder.EntryID)
 
 
 def message_identity(message, store_id: str) -> str:
@@ -109,7 +132,7 @@ class OutlookCollector:
             self.store.save_settings(options)
             self.stop_event = Event()
             self.state.update(status="STARTING", error=None, last_scan=None,
-                              started_at=now.isoformat(), export_error=None, logs=[])
+                              started_at=now.isoformat(), folder_label="", export_error=None, logs=[])
             self.thread = Thread(target=self.run, args=(options, cutoff), daemon=True)
             self.thread.start()
 
@@ -152,28 +175,48 @@ class OutlookCollector:
         self.update(last_scan=datetime.now(timezone.utc).isoformat())
         return imported
 
+    def scan_folders(self, namespace, path: str, cutoff: datetime) -> int:
+        """Always poll Inbox, plus the optional folder, with isolated failures."""
+        folders = [namespace.GetDefaultFolder(6)]
+        errors = []
+        if path:
+            try:
+                extra = resolve_folder(namespace, path)
+                if folder_identity(extra) != folder_identity(folders[0]):
+                    folders.append(extra)
+            except ValueError as exc:
+                errors.append(str(exc))
+        self.update(folder_label=" + ".join(str(folder.FolderPath) for folder in folders))
+        imported = 0
+        for folder in folders:
+            if self.stop_event.is_set():
+                break
+            try:
+                imported += self.scan(folder, cutoff)
+            except Exception:
+                errors.append(f"Lecture impossible : {folder.FolderPath}. Nouvel essai à la prochaine vérification.")
+        self.update(error=" ".join(errors) if errors else None)
+        return imported
+
     def run(self, options: dict, cutoff: datetime):
         import pythoncom
         import win32com.client
 
         initialized = False
-        namespace = folder = outlook = None
+        namespace = outlook = None
         try:
             pythoncom.CoInitialize()
             initialized = True
             outlook = win32com.client.Dispatch("Outlook.Application")
             namespace = outlook.GetNamespace("MAPI")
-            folder = resolve_folder(namespace, options["folder"])
             with self.lock:
                 if not self.stop_event.is_set():
                     self.state["status"] = "RUNNING"
-                self.state["folder_label"] = str(folder.FolderPath)
             self.log("INFO", "Surveillance Outlook démarrée. Les emails déjà collectés sont ignorés.")
             export_dirty = True  # Recover a stale/missing Excel snapshot after restart.
             while not self.stop_event.is_set():
                 try:
-                    export_dirty = bool(self.scan(folder, cutoff)) or export_dirty
-                    self.update(error=None)
+                    export_dirty = bool(self.scan_folders(namespace, options["folder"], cutoff)) or export_dirty
                 except Exception:
                     self.update(error="Outlook est indisponible. Nouvelle tentative à la prochaine vérification.")
                     self.log("WARNING", "Vérifiez la connexion Outlook et le dossier sélectionné.")
@@ -192,6 +235,6 @@ class OutlookCollector:
             self.update(status="ERROR", error=message)
             self.log("ERROR", message)
         finally:
-            folder = namespace = outlook = None
+            namespace = outlook = None
             if initialized:
                 pythoncom.CoUninitialize()

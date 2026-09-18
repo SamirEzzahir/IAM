@@ -272,9 +272,16 @@ qui exécute `/FO`, avec la même connexion MAPI que `testemail.py`. Il ne lit p
 les pièces jointes et ne modifie ni les messages ni leur état lu/non lu.
 
 1. Ouvrir Outlook classique sur ce PC avec le compte souhaité.
-2. Laisser le dossier vide pour la boîte de réception du compte Outlook par
-   défaut, ou saisir un chemin relatif comme `FTTH/Activations`. Le dossier
-   choisi est surveillé seul, sans parcourir récursivement ses sous-dossiers.
+2. La boîte de réception du compte Outlook par défaut est toujours surveillée.
+   Laisser le dossier supplémentaire vide pour surveiller uniquement la réception,
+   ou saisir `Archivage`, `Archivage/FTTH`, ou `Nom de la boîte/Archivage` pour
+   surveiller les deux. Le chemin est recherché d'abord dans la réception,
+   puis à la racine de la boîte, puis parmi les boîtes/archives du profil Outlook.
+   Les sous-dossiers du dossier choisi ne sont pas parcourus automatiquement.
+   Si le dossier supplémentaire est introuvable ou indisponible, une erreur est
+   affichée et la réception continue d'être surveillée ; le dossier est réessayé
+   à la prochaine vérification. Le même dossier n'est jamais parcouru deux fois
+   dans un cycle.
 3. Choisir **Nouveaux emails seulement** (reçus après le clic sur Démarrer) ou
    **Depuis une date** (minuit, heure locale du PC Outlook).
 4. Démarrer la surveillance. Elle vérifie toutes les 30 secondes par défaut et
@@ -287,7 +294,7 @@ la casse, les accents et les espaces supplémentaires.
 
 Les variantes de colonnes des trois exemples sont reconnues. `MSAN / SRO` et
 `ODF` alimentent la colonne **ODF**. `MSAN` et `MSAN OLT` alimentent la colonne
-**MSAN**, placée juste après ODF dans le tableau et l'Excel. Les deux valeurs
+**MSAN**, placée juste avant ODF dans le tableau et l'Excel. Les deux valeurs
 restent séparées si elles figurent dans le même email.
 Les colonnes absentes restent vides et les colonnes supplémentaires sont
 conservées dans **Autres colonnes**. Les références `DFOI…`, les brins et les

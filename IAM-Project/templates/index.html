@@ -265,7 +265,7 @@
             <div class="section-heading"><span class="section-icon">✉</span><div><h2>Emails FTTH → Excel</h2><p>Récupérer les tableaux des emails Outlook et les réunir dans un fichier Excel.</p></div></div>
             <div class="notice top-gap">La surveillance utilise Outlook classique sur le PC qui exécute l’application. Gardez le serveur lancé ; vous pouvez changer d’onglet ou fermer cette page. Les messages restent inchangés dans Outlook.</div>
             <form id="outlookForm" class="config-grid">
-              <div class="field full"><label for="outlookFolder">Sous-dossier de la boîte de réception (facultatif)</label><input id="outlookFolder" type="text" placeholder="Boîte de réception principale" maxlength="500"><small>Laisser vide pour la réception principale. Exemple : FTTH/Activations. Seul le dossier indiqué est surveillé, sans ses sous-dossiers.</small></div>
+              <div class="field full"><label for="outlookFolder">Dossier supplémentaire à surveiller (facultatif)</label><input id="outlookFolder" type="text" placeholder="Ex. Archivage" maxlength="500"><small>La boîte de réception est toujours surveillée. Ajoutez Archivage, Archivage/FTTH ou un chemin complet comme Nom de la boîte/Archivage. Le dossier peut se trouver dans la réception ou à côté. Les sous-dossiers ne sont pas parcourus automatiquement.</small></div>
               <div class="field full"><label>Période de collecte</label><div class="assignment-mode" role="radiogroup" aria-label="Période Outlook"><label><input type="radio" name="outlookMode" value="new" checked><span>Nouveaux emails seulement</span></label><label><input type="radio" name="outlookMode" value="since"><span>Depuis une date</span></label></div><small>« Nouveaux » commence à chaque clic sur Démarrer. « Depuis une date » reprend l’historique puis surveille les nouveaux emails. Les emails déjà traités ne sont pas ajoutés une deuxième fois.</small></div>
               <div id="outlookSinceField" class="field is-hidden"><label for="outlookSince">Date de début</label><input id="outlookSince" type="date"><small>Minuit, heure locale du PC Outlook.</small></div>
               <div class="field"><label for="outlookInterval">Vérifier toutes les (secondes)</label><input id="outlookInterval" type="number" min="10" max="3600" value="30" required></div>
@@ -277,7 +277,7 @@
           </article>
           <article class="card results-card">
             <div class="result-head"><div><h2>Dernières lignes collectées</h2><p id="outlookSummary">Aucune collecte.</p><p id="outlookLastScan"></p></div><span id="outlookStatusBadge" class="badge neutral">Arrêté</span></div>
-            <div class="results"><table><thead><tr><th>Commande</th><th>ONT</th><th>Client</th><th>Login</th><th>ODF</th><th>MSAN</th><th>PCO</th><th>Brin</th><th>GPS PCO</th><th>Date réception</th><th>Sujet</th></tr></thead><tbody id="outlookResultsBody"><tr><td colspan="11" class="empty">Aucune ligne collectée.</td></tr></tbody></table></div>
+            <div class="results"><table><thead><tr><th>Commande</th><th>ONT</th><th>Client</th><th>Login</th><th>MSAN</th><th>ODF</th><th>PCO</th><th>Brin</th><th>GPS PCO</th><th>Date réception</th><th>Sujet</th></tr></thead><tbody id="outlookResultsBody"><tr><td colspan="11" class="empty">Aucune ligne collectée.</td></tr></tbody></table></div>
             <p class="notice">Les 100 dernières lignes sont affichées ici. Le fichier Excel contient toutes les lignes collectées, même après un redémarrage.</p>
           </article>
           <article class="log-card"><div class="log-title"><span>●</span> Journal Outlook</div><div id="outlookLog" class="live-log"></div></article>
@@ -317,6 +317,6 @@
   </div>
   <div id="toast" class="toast" role="status"></div>
   <script src="static/app.js?v=20260918-1"></script>
-  <script src="static/outlook.js?v=20260918-2"></script>
+  <script src="static/outlook.js?v=20260918-3"></script>
 </body>
 </html>
